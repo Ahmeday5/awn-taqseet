@@ -1,0 +1,249 @@
+<div class="pgh">
+  <div>
+    <div class="pgt">عقد تقسيط جديد</div>
+    <div class="pgs">إضافة عقد جديد لعميل وتقسيط منتج من المخزن</div>
+  </div>
+  <div class="d-flex gap-2">
+    <a routerLink="/contracts" class="btn btn-sm btn-outline-secondary">إلغاء</a>
+    <button
+      class="btn btn-sm btn-bl"
+      [disabled]="submitting() || form.invalid"
+      (click)="onSubmit()"
+    >
+      @if (submitting()) {
+        <span class="spinner-border spinner-border-sm me-1"></span>
+      }
+      حفظ العقد
+    </button>
+  </div>
+</div>
+
+@if (loading()) {
+  <div class="loader-container">
+    <app-loader></app-loader>
+    <p class="mt-2 text-muted">جاري تحميل البيانات...</p>
+  </div>
+} @else {
+  <form [formGroup]="form" (ngSubmit)="onSubmit()">
+    <div class="row g-4">
+      <!-- Right: main form -->
+      <div class="col-12 col-lg-8">
+
+        <!-- العميل والمندوب -->
+        <div class="card mb-3">
+          <div class="ct mb-3">بيانات العميل</div>
+          <div class="row g-3">
+            <div class="col-12 col-md-6">
+              <label class="form-label required">العميل</label>
+              <app-searchable-select
+                formControlName="clientId"
+                placeholder="اختر العميل"
+                searchPlaceholder="ابحث بالاسم أو رقم الجوال…"
+                [options]="clientOptions()"
+              />
+              <app-form-error [control]="form.controls['clientId']" label="العميل" />
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label">المندوب <span class="text-muted" style="font-size:11px">(اختياري)</span></label>
+              <app-searchable-select
+                formControlName="representativeId"
+                placeholder="بدون مندوب"
+                searchPlaceholder="ابحث باسم المندوب…"
+                [options]="representativeOptions()"
+              />
+            </div>
+          </div>
+        </div>
+
+        <!-- المنتجات -->
+        <div class="card mb-3">
+          <div class="d-flex align-items-center justify-content-between mb-3">
+            <div class="ct mb-0">المنتجات</div>
+            <button type="button" class="btn btn-sm btn-outline-primary" (click)="addItem()">
+              + إضافة منتج
+            </button>
+          </div>
+
+          <div formArrayName="items">
+            @for (item of itemsArray.controls; track i; let i = $index) {
+              <div [formGroupName]="i">
+                @if (i > 0) { <hr class="my-3"/> }
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                  <span class="text-muted" style="font-size:12px">منتج {{ i + 1 }}</span>
+                  @if (itemsArray.length > 1) {
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-outline-danger"
+                      style="padding:2px 10px;font-size:13px"
+                      (click)="removeItem(i)"
+                    >× حذف</button>
+                  }
+                </div>
+                <div class="row g-2">
+                  <div class="col-12 col-md-5">
+                    <label class="form-label required">المنتج</label>
+                    <app-searchable-select
+                      formControlName="productId"
+                      placeholder="اختر المنتج"
+                      searchPlaceholder="ابحث باسم المنتج…"
+                      [options]="productOptions()"
+                    />
+                    <app-form-error [control]="getItemControl(i, 'productId')!" label="المنتج" />
+                  </div>
+                  <div class="col-12 col-md-5">
+                    <label class="form-label required">المخزن</label>
+                    <app-searchable-select
+                      formControlName="warehouseId"
+                      placeholder="اختر المخزن"
+                      searchPlaceholder="ابحث باسم المخزن…"
+                      [options]="warehouseOptions()"
+                    />
+                    <app-form-error [control]="getItemControl(i, 'warehouseId')!" label="المخزن" />
+                  </div>
+                  <div class="col-12 col-md-2">
+                    <label class="form-label required">الكمية</label>
+                    <input type="number" class="form-control" formControlName="quantity" min="1" />
+                  </div>
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+
+        <!-- التواريخ والملاحظات -->
+        <div class="card">
+          <div class="ct mb-3">تفاصيل العقد</div>
+          <div class="row g-3">
+            <div class="col-12 col-md-6">
+              <label class="form-label required">تاريخ البيع</label>
+              <input type="date" class="form-control" formControlName="dateOfSale" />
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label required">موعد أول قسط</label>
+              <input type="date" class="form-control" formControlName="firstInstallmentDate" />
+            </div>
+            <div class="col-12">
+              <label class="form-label">ملاحظات</label>
+              <textarea class="form-control" rows="2" formControlName="notes" placeholder="اختياري..."></textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Left: financial summary -->
+      <div class="col-12 col-lg-4">
+        <div class="card h-100 financial-card" style="position:sticky;top:0">
+          <div class="ct mb-4">التفاصيل المالية</div>
+
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label required">سعر البيع الإجمالي (كاش)</label>
+              <div class="input-group">
+                <input type="number" class="form-control" formControlName="cashPrice" min="1" />
+                <span class="input-group-text">ج.م</span>
+              </div>
+            </div>
+
+            <div class="col-12">
+              <label class="form-label">المقدم المدفوع</label>
+              <div class="input-group">
+                <input type="number" class="form-control" formControlName="downPayment" min="0" />
+                <span class="input-group-text">ج.م</span>
+              </div>
+            </div>
+
+            <div class="col-12">
+              <label class="form-label required">نسبة الربح (إجمالي)</label>
+              <div class="input-group">
+                <input type="number" class="form-control" formControlName="profitRate" min="0" />
+                <span class="input-group-text">%</span>
+              </div>
+            </div>
+
+            <div class="col-12">
+              <label class="form-label required">عدد الأقساط</label>
+              <input type="number" class="form-control" formControlName="installmentsCount" min="1" />
+            </div>
+
+            <div class="col-12">
+              <div class="form-check form-switch d-flex align-items-center justify-content-between rounded-2 p-2" style="background:var(--bg2,#f8f9fa)">
+                <label class="form-check-label me-2" for="custom-installments">أقساط مخصصة</label>
+                <input class="form-check-input" type="checkbox" role="switch" id="custom-installments" formControlName="isCustomInstallmentAmount" />
+              </div>
+              <div class="small text-muted mt-1">عند التفعيل، يظل القسط المدخل قابلًا للتعديل ويحسب آخر قسط تلقائيًا من الباقي.</div>
+            </div>
+
+            <div class="col-12">
+              <label class="form-label required">دورية الدفع</label>
+              <select class="form-select" formControlName="paymentFrequency">
+                @for (f of frequencies; track f.value) {
+                  <option [value]="f.value">{{ f.label }}</option>
+                }
+              </select>
+            </div>
+
+            <hr class="my-2" />
+
+            @if (form.get('isCustomInstallmentAmount')?.value) {
+              <div class="col-12">
+                <label class="form-label">قيمة القسط</label>
+                <div class="input-group">
+                  <input type="number" class="form-control" formControlName="installmentAmount" min="0" />
+                  <span class="input-group-text">ج.م</span>
+                </div>
+              </div>
+              <div class="col-12">
+                <div class="rounded-2 p-2" style="background:var(--bg2,#f8f9fa)">
+                  <div class="small text-muted">القسط الأخير المتوقع</div>
+                  <div class="fw-bold" dir="ltr">{{ getLastInstallmentPreview() | currencyAr: true }}</div>
+                </div>
+                @if (getLastInstallmentPreview() < 0) {
+                  <div class="text-danger small mt-1">قيمة القسط المدخلة أكبر من إجمالي العقد المتوقع لعدد الأقساط المحدد.</div>
+                }
+              </div>
+            } @else {
+              <div class="col-12">
+                <div class="installment-result">
+                  <div class="label">قيمة القسط</div>
+                  <div class="value">{{ form.get('installmentAmount')?.value | currencyAr }}</div>
+                </div>
+              </div>
+            }
+
+            <div class="col-12">
+              <label class="form-label required">الخزنة (لإيداع المقدم)</label>
+              <app-searchable-select
+                formControlName="treasuryId"
+                placeholder="اختر الخزنة"
+                searchPlaceholder="ابحث باسم الخزنة…"
+                [options]="treasuryOptions()"
+              />
+              <app-form-error [control]="form.controls['treasuryId']" label="الخزنة" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Submit — mobile -->
+    <div class="d-lg-none mt-4 pb-4">
+      <button
+        type="submit"
+        class="btn btn-bl w-100 py-3"
+        [disabled]="submitting() || form.invalid"
+      >
+        @if (submitting()) {
+          <span class="spinner-border spinner-border-sm me-1"></span>
+        }
+        إتمام وحفظ العقد
+      </button>
+    </div>
+  </form>
+}
+
+@if (printContractId()) {
+  <app-contract-print-modal
+    [contractId]="printContractId()!"
+    [onClose]="closePrintModal.bind(this)"
+  />
+}

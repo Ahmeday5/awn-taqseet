@@ -1,0 +1,312 @@
+<!-- ── Page Header ── -->
+<div class="pgh">
+  <div>
+    @if (isEditMode()) {
+      <div class="pgt">تعديل العقد رقم #{{ editId() }}</div>
+    } @else {
+      <div class="pgt">عقد تقسيط جديد</div>
+    }
+    <div class="pgs">إضافة عقد تقسيط جديد لعميل وربطه بمنتج من المخزن</div>
+  </div>
+  <div class="d-flex gap-2 align-items-center">
+    <a routerLink="/customers/customer-list" class="btn btn-sm">إلغاء</a>
+    <button
+      type="button"
+      class="btn btn-sm btn-bl d-inline-flex align-items-center gap-2"
+      [disabled]="isSaving() || form.invalid"
+      (click)="save()"
+    >
+      @if (isSaving()) { <span class="spinner-border spinner-border-sm"></span> }
+      <span>{{ isSaving() ? 'جاري الحفظ...' : isEditMode() ? 'حفظ التعديلات' : 'حفظ العقد' }}</span>
+    </button>
+  </div>
+</div>
+
+@if (loading()) {
+  <div class="loader-container">
+    <app-loader></app-loader>
+    <p class="mt-2" style="color:var(--txt3);font-size:13px">جاري تحميل البيانات...</p>
+  </div>
+} @else {
+
+<form [formGroup]="form" (ngSubmit)="save()" novalidate>
+  <div class="row g-3">
+
+    <!-- ══ Right: forms ══ -->
+    <div class="col-12 col-lg-8">
+
+      <!-- العميل والمندوب -->
+      <div class="card">
+        <div class="ct">بيانات العميل</div>
+        <div class="row g-3 mt-1">
+          <div class="col-12 col-sm-6">
+            <label class="form-label">العميل <span class="text-danger">*</span></label>
+            <app-searchable-select
+              formControlName="clientId"
+              placeholder="اختر العميل"
+              searchPlaceholder="ابحث بالاسم أو رقم الجوال…"
+              [options]="clientOptions()"
+            />
+            <app-form-error [control]="form.controls.clientId" label="العميل" />
+          </div>
+          <div class="col-12 col-sm-6">
+            <label class="form-label">المندوب <span class="cn-opt">(اختياري)</span></label>
+            <app-searchable-select
+              formControlName="representativeId"
+              placeholder="بدون مندوب"
+              searchPlaceholder="ابحث باسم المندوب…"
+              [options]="representativeOptions()"
+            />
+          </div>
+        </div>
+      </div>
+
+      <!-- المنتجات -->
+      <div class="card">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+          <div class="ct mb-0">المنتجات</div>
+          <button type="button" class="btn btn-sm" style="border-color:var(--bl);color:var(--bl)" (click)="addItem()">
+            + إضافة منتج
+          </button>
+        </div>
+
+        <div formArrayName="items">
+          @for (item of itemsArray.controls; track item; let i = $index) {
+            <div [formGroupName]="i" class="cn-item">
+              <div class="cn-item-head">
+                <span class="cn-item-num">{{ i + 1 }}</span>
+                @if (itemsArray.length > 1) {
+                  <button type="button" class="cn-remove" (click)="removeItem(i)">× حذف</button>
+                }
+              </div>
+              <div class="row g-2">
+                <div class="col-12 col-sm-5">
+                  <label class="form-label">المنتج <span class="text-danger">*</span></label>
+                  <app-searchable-select
+                    formControlName="productId"
+                    placeholder="اختر المنتج"
+                    searchPlaceholder="ابحث باسم المنتج…"
+                    [options]="productOptions()"
+                  />
+                  <app-form-error [control]="getItemControl(i, 'productId')!" label="المنتج" />
+                </div>
+                <div class="col-12 col-sm-5">
+                  <label class="form-label">المخزن <span class="text-danger">*</span></label>
+                  <app-searchable-select
+                    formControlName="warehouseId"
+                    placeholder="اختر المخزن"
+                    searchPlaceholder="ابحث باسم المخزن…"
+                    [options]="warehouseOptions()"
+                  />
+                  <app-form-error [control]="getItemControl(i, 'warehouseId')!" label="المخزن" />
+                </div>
+                <div class="col-12 col-sm-2">
+                  <label class="form-label">الكمية</label>
+                  <input type="number" class="form-control" formControlName="quantity" min="1" step="1" dir="ltr" />
+                </div>
+              </div>
+              @if (itemBreakdowns()[i] && itemBreakdowns()[i].unitPrice > 0) {
+                <div class="cn-price-hint">
+                  {{ itemBreakdowns()[i].unitPrice | currencyAr: true }} × {{ itemBreakdowns()[i].quantity }} =
+                  <strong>{{ itemBreakdowns()[i].subtotal | currencyAr: true }}</strong>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- التواريخ والملاحظات -->
+      <div class="card">
+        <div class="ct">تواريخ وملاحظات</div>
+        <div class="row g-3 mt-1">
+          <div class="col-12 col-sm-6">
+            <label class="form-label">تاريخ البيع <span class="text-danger">*</span></label>
+            <input type="date" class="form-control" formControlName="dateOfSale" dir="ltr" />
+          </div>
+          <div class="col-12 col-sm-6">
+            <label class="form-label">تاريخ أول قسط <span class="text-danger">*</span></label>
+            <input type="date" class="form-control" formControlName="firstInstallmentDate" dir="ltr" />
+          </div>
+          <div class="col-12">
+            <label class="form-label">ملاحظات <span class="cn-opt">(اختياري)</span></label>
+            <textarea class="form-control" rows="2" formControlName="notes" placeholder="أي ملاحظات إضافية..."></textarea>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ══ Left: financial panel ══ -->
+    <div class="col-12 col-lg-4">
+      <div class="card" style="position:sticky;top:0">
+        <div class="ct">التفاصيل المالية</div>
+
+        <!-- Breakdown -->
+        @if (computedTotal() > 0) {
+          <div class="cn-breakdown">
+            @for (b of itemBreakdowns(); track $index) {
+              @if (b.unitPrice > 0) {
+                <div class="cn-bd-row">
+                  <span class="cn-bd-name" [title]="b.name">{{ b.name }}</span>
+                  <span class="cn-bd-val" dir="ltr">
+                    {{ b.unitPrice | currencyAr: true }} × {{ b.quantity }}
+                    = <strong>{{ b.subtotal | currencyAr: true }}</strong>
+                  </span>
+                </div>
+              }
+            }
+            <div class="cn-bd-total">
+              <span>إجمالي المنتجات</span>
+              <span dir="ltr">{{ computedTotal() | currencyAr: true }}</span>
+            </div>
+          </div>
+        }
+
+        <!-- Fields -->
+        <div class="cn-fields">
+          <div>
+            <label class="form-label">سعر البيع الإجمالي (كاش) <span class="text-danger">*</span></label>
+            <div class="input-group">
+              <input type="number" class="form-control" formControlName="cashPrice" min="1" dir="ltr" />
+              <span class="input-group-text">ج.م</span>
+            </div>
+            @if (computedTotal() > 0 && computedTotal() !== summary().cashPrice) {
+              <div class="cn-apply-hint">
+                الإجمالي المحسوب: <strong>{{ computedTotal() | currencyAr: true }}</strong>
+                <button type="button" class="cn-apply" (click)="form.patchValue({cashPrice: computedTotal()})">تطبيق</button>
+              </div>
+            }
+          </div>
+
+          <div>
+            <label class="form-label">المقدم المدفوع</label>
+            <div class="input-group">
+              <input type="number" class="form-control" formControlName="downPayment" min="0" dir="ltr" />
+              <span class="input-group-text">ج.م</span>
+            </div>
+          </div>
+
+          <div class="row g-2">
+            <div class="col-6">
+              <label class="form-label">نسبة الربح % <span class="text-danger">*</span></label>
+              <div class="input-group">
+                <input type="number" class="form-control" formControlName="profitRate" min="0" max="100" step="0.5" dir="ltr" />
+                <span class="input-group-text">%</span>
+              </div>
+            </div>
+            <div class="col-6">
+              <label class="form-label">عدد الأقساط <span class="text-danger">*</span></label>
+              <input type="number" class="form-control" formControlName="installmentsCount" min="1" max="120" dir="ltr" />
+            </div>
+          </div>
+
+          <div>
+            <label class="form-label d-flex justify-content-between">
+              <span>قيمة القسط</span>
+              <span class="cn-opt">{{ form.controls.isCustomInstallmentAmount.value ? 'مخصص' : 'تلقائي' }}</span>
+            </label>
+            <div class="input-group">
+              <input
+                type="number"
+                class="form-control"
+                formControlName="installmentAmount"
+                dir="ltr"
+                [readonly]="!form.controls.isCustomInstallmentAmount.value"
+              />
+              <span class="input-group-text">ج.م</span>
+            </div>
+          </div>
+
+          <div class="form-check form-switch d-flex align-items-center justify-content-between rounded-2 p-2" style="background:var(--bg2,#f8f9fa)">
+            <label class="form-check-label me-2" for="custom-installments">أقساط مخصصة</label>
+            <input class="form-check-input" type="checkbox" role="switch" id="custom-installments" formControlName="isCustomInstallmentAmount" />
+          </div>
+          <div class="small text-muted mt-1">عند التفعيل، يظل القسط المدخل قابلًا للتعديل ويحسب آخر قسط تلقائيًا من الباقي.</div>
+
+          <div>
+            <label class="form-label">دورية الدفع <span class="text-danger">*</span></label>
+            <select class="form-select" formControlName="paymentFrequency">
+              @for (f of frequencies; track f.value) {
+                <option [value]="f.value">{{ f.label }}</option>
+              }
+            </select>
+          </div>
+
+          @if (form.controls.isCustomInstallmentAmount.value) {
+            <div class="rounded-2 p-2" style="background:var(--bg2,#f8f9fa)">
+              <div class="small text-muted">القسط الأخير المتوقع</div>
+              <div class="fw-bold" dir="ltr">{{ getLastInstallmentPreview() | currencyAr: true }}</div>
+            </div>
+            @if (getLastInstallmentPreview() < 0) {
+              <div class="text-danger small mt-1">قيمة القسط المدخلة أكبر من إجمالي العقد المتوقع لعدد الأقساط المحدد.</div>
+            }
+          }
+
+          <div>
+            <label class="form-label">الخزنة <span class="text-danger">*</span></label>
+            <app-searchable-select
+              formControlName="treasuryId"
+              placeholder="اختر الخزنة"
+              searchPlaceholder="ابحث باسم الخزنة…"
+              [options]="treasuryOptions()"
+            />
+            <app-form-error [control]="form.controls.treasuryId" label="الخزنة" />
+          </div>
+        </div>
+
+        <!-- Summary rows -->
+        <div class="cn-summary">
+          <div class="cr">
+            <span>سعر البيع كاش</span>
+            <span dir="ltr">{{ summary().cashPrice | currencyAr }}</span>
+          </div>
+          <div class="cr">
+            <span>المقدم</span>
+            <span dir="ltr">{{ summary().downPayment | currencyAr }}</span>
+          </div>
+          <div class="cr">
+            <span>الباقي بعد المقدم</span>
+            <span dir="ltr">{{ summary().afterDown | currencyAr }}</span>
+          </div>
+          <div class="cr">
+            <span>الربح ({{ summary().profitRate }}%)</span>
+            <span dir="ltr">{{ summary().profitAmount | currencyAr }}</span>
+          </div>
+          <div class="ct2">
+            <span>إجمالي البيع بالأقساط</span>
+            <span dir="ltr">{{ summary().totalAmount | currencyAr }}</span>
+          </div>
+          <div class="ci">
+            <span>القسط × {{ summary().count }}</span>
+            <span dir="ltr">{{ summary().installmentAmt | currencyAr }}</span>
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="d-flex gap-2 mt-3">
+          <button
+            type="submit"
+            class="btn btn-bl flex-fill"
+            [disabled]="isSaving() || form.invalid"
+          >
+            @if (isSaving()) { <span class="spinner-border spinner-border-sm me-1"></span> }
+            {{ isSaving() ? 'جاري الحفظ...' : isEditMode() ? 'حفظ التعديلات' : 'حفظ العقد' }}
+          </button>
+          <button type="button" class="btn" (click)="reset()">مسح</button>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</form>
+
+}
+
+@if (printContractId()) {
+  <app-contract-print-modal
+    [contractId]="printContractId()!"
+    [onClose]="closePrintModal.bind(this)"
+  />
+}

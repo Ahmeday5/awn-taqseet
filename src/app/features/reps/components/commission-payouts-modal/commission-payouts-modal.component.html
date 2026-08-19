@@ -1,0 +1,108 @@
+<app-modal
+  [open]="open()"
+  title="سجل صرف العمولات"
+  size="xl"
+  (closed)="closed.emit()"
+>
+  <div class="mb-3">
+    <input
+      type="text"
+      class="form-control form-control-sm"
+      placeholder="بحث باسم المندوب..."
+      [value]="search()"
+      (input)="onSearch($any($event.target).value)"
+    />
+  </div>
+
+  <div class="tw" style="margin-bottom:0">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>رقم السند</th>
+          <th>التاريخ</th>
+          <th>المندوب</th>
+          <th>المبلغ</th>
+          <th>الخزينة</th>
+          <th>ملاحظات</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (p of rows(); track p.id; let i = $index) {
+          <tr>
+            <td style="font-weight:600">{{ rowNumber(i) }}</td>
+            <td class="trf-date">{{ p.date | dateAr: 'short' }}</td>
+            <td style="font-weight:600">{{ p.representativeName }}</td>
+            <td class="trf-amount">{{ p.amount | currencyAr: true }}</td>
+            <td>{{ p.treasuryName }}</td>
+            <td>{{ p.notes || '—' }}</td>
+            <td>
+              <div class="d-inline-flex gap-1">
+                <button
+                  type="button"
+                  class="btn btn-sm btn-bl"
+                  [disabled]="loading() || deletingId() === p.id"
+                  (click)="openEdit(p)"
+                  title="تعديل"
+                >تعديل</button>
+                <button
+                  type="button"
+                  class="btn btn-sm btn-re d-inline-flex align-items-center gap-1"
+                  [disabled]="loading() || deletingId() === p.id"
+                  (click)="confirmDelete(p)"
+                  title="حذف"
+                >
+                  @if (deletingId() === p.id) {
+                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                  }
+                  <span>حذف</span>
+                </button>
+              </div>
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="7" class="text-center py-4" style="color:var(--txt3);font-size:12px">
+              @if (loading()) { جاري التحميل... } @else { لا توجد عمليات صرف بعد. }
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+
+  @if (count() > 0) {
+    <app-pagination
+      [pageIndex]="pageIndex()"
+      [pageSize]="pageSize()"
+      [count]="count()"
+      [totalPages]="totalPages()"
+      [disabled]="loading()"
+      (pageChange)="onPageChange($event)"
+      (pageSizeChange)="onPageSizeChange($event)"
+    />
+  }
+
+  <ng-container modal-footer>
+    <button type="button" class="btn" (click)="closed.emit()">إغلاق</button>
+    <button
+      type="button"
+      class="btn btn-bl d-inline-flex align-items-center gap-1"
+      [disabled]="rows().length === 0 || loading() || isPrinting()"
+      (click)="printPayouts()"
+      title="طباعة"
+    >
+      @if (isPrinting()) {
+        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+      }
+      <span>🖨 طباعة PDF</span>
+    </button>
+  </ng-container>
+</app-modal>
+
+<app-commission-payout-edit-modal
+  [open]="editOpen()"
+  [payout]="editingPayout()"
+  (closed)="onEditClosed()"
+  (saved)="onEditSaved()"
+/>
