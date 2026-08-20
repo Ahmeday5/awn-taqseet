@@ -11,5 +11,5 @@ import { LoaderComponent } from './shared/components/loader/loader.component';
   styleUrl: './app.component.scss',
 })
 export class AppComponent {
-  title = 'taqseetSystem'
+  title = 'Aoun'
 }
