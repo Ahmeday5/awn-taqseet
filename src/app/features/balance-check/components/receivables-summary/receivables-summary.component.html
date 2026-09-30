@@ -1,0 +1,8 @@
+<dl class="rs-grid">
+  @for (tile of tiles(); track tile.label) {
+    <div class="rs-tile" [class.rs-tile--em]="tile.emphasis">
+      <dt class="rs-label">{{ tile.label }}</dt>
+      <dd class="rs-value">{{ tile.value }}</dd>
+    </div>
+  }
+</dl>

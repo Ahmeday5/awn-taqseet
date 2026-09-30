@@ -1,0 +1,48 @@
+<article class="bp" [class.bp--obligations]="side() === 'obligations'" [attr.aria-label]="title()">
+  <header class="bp__head">
+    <div class="bp__titles">
+      <span class="bp__kicker">{{ kicker() }}</span>
+      <h2 class="bp__title">{{ title() }}</h2>
+      @if (subtitle()) {
+        <p class="bp__subtitle">{{ subtitle() }}</p>
+      }
+    </div>
+    <div class="bp__total">
+      <span class="bp__total-label">الإجمالي</span>
+      <span class="bp__total-value">{{ total() | moneyAr }}</span>
+    </div>
+  </header>
+
+  @if (segments().length) {
+    <div class="bp__composition" role="img" [attr.aria-label]="'توزيع ' + title()">
+      @for (seg of segments(); track seg.key) {
+        @if (seg.share > 0) {
+          <span
+            class="bp__segment"
+            [style.width.%]="seg.share"
+            [style.background]="'var(--' + seg.tone + ')'"
+            [attr.title]="seg.label + ' — ' + (seg.share | percentAr)"
+          ></span>
+        }
+      }
+    </div>
+    <ul class="bp__legend">
+      @for (seg of segments(); track seg.key) {
+        <li class="bp__legend-item">
+          <span class="bp__legend-dot" [style.background]="'var(--' + seg.tone + ')'" aria-hidden="true"></span>
+          {{ seg.label }}
+          <span class="bp__legend-pct">{{ seg.share | percentAr }}</span>
+        </li>
+      }
+    </ul>
+  }
+
+  <div class="bp__sections">
+    <ng-content />
+  </div>
+
+  <footer class="bp__foot">
+    <span>{{ totalLabel() }}</span>
+    <span class="bp__foot-value">{{ total() | moneyAr }}</span>
+  </footer>
+</article>

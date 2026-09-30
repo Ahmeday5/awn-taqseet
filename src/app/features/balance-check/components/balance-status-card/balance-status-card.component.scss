@@ -1,0 +1,201 @@
+:host {
+  display: block;
+}
+
+.bsc {
+  --bsc-tone: var(--gr);
+  --bsc-tone-l: var(--gr-l);
+
+  position: relative;
+  overflow: hidden;
+  padding: 18px 20px 16px;
+  border: 1px solid var(--brd);
+  border-inline-start: 4px solid var(--bsc-tone);
+  border-radius: var(--rl);
+  box-shadow: var(--shadow);
+  // Tone wash fades from the verdict side toward the equation.
+  background:
+    linear-gradient(to left, var(--bsc-tone-l) 0%, transparent 55%),
+    var(--bg2);
+
+  &--bad {
+    --bsc-tone: var(--re);
+    --bsc-tone-l: var(--re-l);
+  }
+}
+
+.bsc__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.bsc__verdict {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.bsc__badge {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  background: var(--bsc-tone);
+  box-shadow: 0 0 0 5px var(--bsc-tone-l);
+}
+
+.bsc__headline {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--bsc-tone);
+}
+
+.bsc__explain {
+  margin: 2px 0 0;
+  font-size: 11px;
+  color: var(--txt2);
+}
+
+/* ── equation ── */
+.bsc__equation {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.bsc__term {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 120px;
+  padding: 8px 12px;
+  border: 1px solid var(--brd);
+  border-radius: var(--r);
+  background: var(--bg2);
+
+  &--result {
+    border-color: transparent;
+    background: var(--bsc-tone-l);
+
+    .bsc__term-label,
+    .bsc__term-value {
+      color: var(--bsc-tone);
+    }
+  }
+}
+
+.bsc__term-label {
+  font-size: 10px;
+  color: var(--txt3);
+  font-weight: 500;
+}
+
+.bsc__term-value {
+  font-size: 13.5px;
+  font-weight: 800;
+  color: var(--txt);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+
+  &--assets {
+    color: var(--bl);
+  }
+
+  &--obligations {
+    color: var(--pu);
+  }
+}
+
+.bsc__op {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--txt3);
+}
+
+/* ── comparison bars ── */
+.bsc__bars {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 16px;
+}
+
+.bsc__bar-row {
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  align-items: center;
+  gap: 10px;
+}
+
+.bsc__bar-label {
+  font-size: 10px;
+  color: var(--txt2);
+  font-weight: 600;
+}
+
+.bsc__bar {
+  height: 6px;
+  border-radius: 6px;
+  background: var(--bg3);
+  overflow: hidden;
+}
+
+.bsc__bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  transition: width 0.6s ease;
+
+  &--assets {
+    background: var(--bl);
+  }
+
+  &--obligations {
+    background: var(--pu);
+  }
+}
+
+@media (max-width: 576px) {
+  .bsc {
+    padding: 14px;
+  }
+
+  .bsc__equation {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+  }
+
+  .bsc__term {
+    min-width: 0;
+  }
+
+  .bsc__term-value {
+    font-size: 12px;
+  }
+
+  // Result wraps to its own full-width row on phones.
+  .bsc__op:last-of-type,
+  .bsc__term--result {
+    grid-column: 1 / -1;
+  }
+
+  .bsc__op:last-of-type {
+    justify-self: center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bsc__bar-fill {
+    transition: none;
+  }
+}

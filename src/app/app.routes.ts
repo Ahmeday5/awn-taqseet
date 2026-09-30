@@ -2,7 +2,7 @@ import { Routes } from '@angular/router';
 import { authGuard } from './core/guards/auth.guard';
 import { guestGuard } from './core/guards/guest.guard';
 import { permissionGuard } from './core/guards/permission.guard';
-import { roleGuard } from './core/guards/role.guard';
+import { denyRolesGuard, roleGuard } from './core/guards/role.guard';
 import { accessGuard } from './core/guards/access.guard';
 import { PERMISSIONS } from './core/constants/permissions.const';
 
@@ -163,6 +163,20 @@ export const routes: Routes = [
         loadChildren: () =>
           import('./features/reports/reports.routes').then(
             (m) => m.reportsRoutes,
+          ),
+      },
+      {
+        // Trial balance — admins only. The API answers 403 to a
+        // Representative even though they hold Dashboard.View, so the
+        // role is carved out here rather than letting the page fail.
+        path: 'balance-check',
+        canActivate: [
+          permissionGuard(PERMISSIONS.dashboardView),
+          denyRolesGuard(['Representative']),
+        ],
+        loadChildren: () =>
+          import('./features/balance-check/balance-check.routes').then(
+            (m) => m.balanceCheckRoutes,
           ),
       },
       {

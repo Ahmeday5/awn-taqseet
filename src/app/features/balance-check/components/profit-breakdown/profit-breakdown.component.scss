@@ -1,0 +1,133 @@
+:host {
+  display: block;
+}
+
+.pb-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pb-line {
+  --pb-tone: var(--gr);
+  --pb-tone-l: var(--gr-l);
+
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 10px;
+  padding: 8px 6px;
+  border-radius: var(--r);
+  transition: background 0.12s ease;
+
+  &:hover {
+    background: var(--bg3);
+  }
+
+  &--minus {
+    --pb-tone: var(--re);
+    --pb-tone-l: var(--re-l);
+  }
+}
+
+.pb-sign {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--pb-tone, var(--bl));
+  background: var(--pb-tone-l, var(--bl-l));
+}
+
+.pb-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.pb-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--txt);
+}
+
+.pb-hint {
+  font-size: 10px;
+  color: var(--txt3);
+}
+
+.pb-bar {
+  display: block;
+  height: 3px;
+  margin-top: 5px;
+  border-radius: 3px;
+  background: var(--bg3);
+  overflow: hidden;
+}
+
+.pb-bar__fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--pb-tone);
+  transition: width 0.5s ease;
+}
+
+.pb-amount {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--pb-tone);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.pb-total {
+  --pb-tone: var(--bl);
+  --pb-tone-l: var(--bl-l);
+
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 11px 12px;
+  border: 1.5px dashed var(--bl);
+  border-radius: var(--r);
+  background: var(--bl-l);
+
+  &--loss {
+    --pb-tone: var(--re);
+    --pb-tone-l: var(--re-l);
+    border-color: var(--re);
+    background: var(--re-l);
+  }
+}
+
+.pb-total__label {
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--pb-tone);
+}
+
+.pb-total__amount {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--pb-tone);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pb-bar__fill {
+    transition: none;
+  }
+}

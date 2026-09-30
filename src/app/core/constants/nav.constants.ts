@@ -157,6 +157,15 @@ export const NAV_SECTIONS: NavSection[] = [
         // Owners-only — never shown to a Representative.
         hideForRoles: ['Representative'],
       },
+      {
+        id: 'balance-check',
+        label: 'ميزان المراجعة',
+        route: '/balance-check',
+        icon: 'scale',
+        requiredAnyPermission: [PERMISSIONS.dashboardView],
+        // The endpoint 403s for Representatives despite Dashboard.View.
+        hideForRoles: ['Representative'],
+      },
     ],
   },
   {

@@ -1,0 +1,167 @@
+:host {
+  display: block;
+  padding-bottom: 24px;
+}
+
+/* ── header ── */
+.bc-header {
+  margin-bottom: 14px;
+
+  .pgt {
+    margin: 0;
+  }
+}
+
+.bc-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.bc-stamp {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  color: var(--txt3);
+  white-space: nowrap;
+}
+
+.bc-stamp__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--gr);
+  box-shadow: 0 0 0 3px var(--gr-l);
+
+  .bc-stamp--busy & {
+    background: var(--am);
+    box-shadow: 0 0 0 3px var(--am-l);
+    animation: bc-pulse 1s ease-in-out infinite;
+  }
+}
+
+/* ── layout ── */
+.bc-status {
+  margin-bottom: 14px;
+}
+
+.bc-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  align-items: start;
+  transition: opacity 0.2s ease;
+
+  &--refreshing {
+    opacity: 0.6;
+    pointer-events: none;
+  }
+
+  @media (max-width: 1199.98px) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.bc-inline-error {
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+/* ── blocking error / forbidden ── */
+.bc-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+  padding: 56px 20px;
+  background: var(--bg2);
+  border: 1px dashed var(--brd2);
+  border-radius: var(--rl);
+}
+
+.bc-state__icon {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 6px;
+  background: var(--re-l);
+  color: var(--re);
+
+  &--lock {
+    background: var(--am-l);
+    color: var(--am);
+  }
+}
+
+.bc-state__title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--txt);
+}
+
+.bc-state__sub {
+  font-size: 11px;
+  color: var(--txt3);
+}
+
+/* ── skeleton ── */
+.bc-skeleton .bc-grid {
+  margin-top: 14px;
+}
+
+.bc-sk-col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  background: var(--bg2);
+  border: 1px solid var(--brd);
+  border-radius: var(--rl);
+}
+
+.bc-sk {
+  border-radius: var(--r);
+  background: linear-gradient(90deg, var(--bg3) 25%, var(--bg) 37%, var(--bg3) 63%);
+  background-size: 400% 100%;
+  animation: bc-shimmer 1.4s ease infinite;
+
+  &--hero {
+    height: 132px;
+    border-radius: var(--rl);
+  }
+
+  &--head {
+    height: 64px;
+  }
+
+  &--row {
+    height: 110px;
+  }
+}
+
+@keyframes bc-shimmer {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}
+
+@keyframes bc-pulse {
+  50% { opacity: 0.35; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bc-sk,
+  .bc-stamp__dot {
+    animation: none !important;
+  }
+
+  .bc-grid {
+    transition: none;
+  }
+}

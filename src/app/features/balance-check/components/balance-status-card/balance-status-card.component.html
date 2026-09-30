@@ -1,0 +1,58 @@
+<section
+  class="bsc"
+  [class.bsc--ok]="isBalanced()"
+  [class.bsc--bad]="!isBalanced()"
+  role="status"
+  aria-live="polite"
+>
+  <div class="bsc__top">
+    <div class="bsc__verdict">
+      <span class="bsc__badge" aria-hidden="true">
+        @if (isBalanced()) {
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 12.5 10 17.5 19 7" />
+          </svg>
+        } @else {
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 7v6" />
+            <circle cx="12" cy="17" r="0.9" fill="currentColor" />
+          </svg>
+        }
+      </span>
+      <div>
+        <h2 class="bsc__headline">{{ headline() }}</h2>
+        <p class="bsc__explain">{{ explanation() }}</p>
+      </div>
+    </div>
+
+    <div class="bsc__equation" aria-label="معادلة المطابقة">
+      <div class="bsc__term">
+        <span class="bsc__term-label">الأصول</span>
+        <span class="bsc__term-value bsc__term-value--assets">{{ assetsTotal() | moneyAr }}</span>
+      </div>
+      <span class="bsc__op" aria-hidden="true">−</span>
+      <div class="bsc__term">
+        <span class="bsc__term-label">الالتزامات</span>
+        <span class="bsc__term-value bsc__term-value--obligations">{{ obligationsTotal() | moneyAr }}</span>
+      </div>
+      <span class="bsc__op" aria-hidden="true">=</span>
+      <div class="bsc__term bsc__term--result">
+        <span class="bsc__term-label">الفرق</span>
+        <span class="bsc__term-value">{{ difference() | moneyAr }}</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="bsc__bars" aria-hidden="true">
+    <div class="bsc__bar-row">
+      <span class="bsc__bar-label">الأصول</span>
+      <span class="bsc__bar"><span class="bsc__bar-fill bsc__bar-fill--assets" [style.width.%]="assetsWidth()"></span></span>
+    </div>
+    <div class="bsc__bar-row">
+      <span class="bsc__bar-label">الالتزامات</span>
+      <span class="bsc__bar"><span class="bsc__bar-fill bsc__bar-fill--obligations" [style.width.%]="obligationsWidth()"></span></span>
+    </div>
+  </div>
+</section>

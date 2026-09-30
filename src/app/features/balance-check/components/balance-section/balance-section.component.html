@@ -1,0 +1,64 @@
+@let m = meta();
+<section
+  class="bc-sec"
+  [class.bc-sec--open]="expanded()"
+  [style.--bc-tone]="'var(--' + m.tone + ')'"
+  [style.--bc-tone-l]="'var(--' + m.tone + '-l)'"
+>
+  <button
+    type="button"
+    class="bc-sec__head"
+    [attr.aria-expanded]="expanded()"
+    [attr.aria-controls]="bodyId"
+    (click)="toggle()"
+  >
+    <span class="bc-sec__icon" aria-hidden="true">
+      <app-nav-icon [name]="m.icon" [size]="16" />
+    </span>
+
+    <span class="bc-sec__titles">
+      <span class="bc-sec__title">{{ m.title }}</span>
+      @if (caption()) {
+        <span class="bc-sec__caption">{{ caption() }}</span>
+      }
+      <span class="bc-sec__desc">{{ m.description }}</span>
+    </span>
+
+    <span class="bc-sec__figure">
+      <span class="bc-sec__amount" [class.is-neg]="amount() < 0">
+        {{ amount() | moneyAr }}
+      </span>
+      <span class="bc-sec__share">{{ share() | percentAr }} من الإجمالي</span>
+      <span class="bc-sec__meter" aria-hidden="true">
+        <span class="bc-sec__meter-fill" [style.width.%]="share()"></span>
+      </span>
+    </span>
+
+    <svg
+      class="bc-sec__chevron"
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+    >
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  </button>
+
+  <div
+    class="bc-sec__body"
+    role="region"
+    [id]="bodyId"
+    [attr.aria-label]="m.title"
+    [attr.inert]="expanded() ? null : ''"
+  >
+    <div class="bc-sec__body-inner">
+      <ng-content />
+    </div>
+  </div>
+</section>

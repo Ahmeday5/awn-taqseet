@@ -1,0 +1,132 @@
+@let cfg = config();
+
+<!-- ── toolbar ── -->
+<div class="bdt-toolbar">
+  <label class="bdt-search">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+      stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="11" cy="11" r="7" />
+      <path d="m21 21-4.3-4.3" />
+    </svg>
+    <input
+      type="search"
+      [placeholder]="cfg.searchPlaceholder"
+      [attr.aria-label]="cfg.searchPlaceholder"
+      [value]="query()"
+      (input)="onSearch($any($event.target).value)"
+    />
+    @if (hasQuery()) {
+      <button type="button" class="bdt-search__clear" aria-label="مسح البحث" (click)="onSearch('')">×</button>
+    }
+  </label>
+
+  @if (cfg.zeroAmount) {
+    <button
+      type="button"
+      class="bdt-chip"
+      [class.bdt-chip--on]="hideZero()"
+      [attr.aria-pressed]="hideZero()"
+      (click)="toggleHideZero()"
+    >
+      <span class="bdt-chip__dot" aria-hidden="true"></span>
+      إخفاء الأرصدة الصفرية
+    </button>
+  }
+
+  <span class="bdt-count" aria-live="polite">
+    عرض {{ visibleRows().length | numberAr }} من {{ rows().length | numberAr }}
+  </span>
+</div>
+
+<!-- ── table ── -->
+<div class="tw bdt-table">
+  <table>
+    <thead>
+      <tr>
+        <th class="bdt-idx" scope="col">#</th>
+        @for (col of cfg.columns; track col.id) {
+          <th
+            scope="col"
+            [class.bdt-num]="isNumeric(col)"
+            [attr.aria-sort]="ariaSort(col)"
+          >
+            @if (col.sortable !== false) {
+              <button type="button" class="bdt-sort" (click)="toggleSort(col)">
+                {{ col.header }}
+                <span
+                  class="bdt-sort__icon"
+                  [class.is-active]="sort()?.columnId === col.id"
+                  [class.is-asc]="sort()?.columnId === col.id && sort()?.direction === 'asc'"
+                  aria-hidden="true"
+                >▾</span>
+              </button>
+            } @else {
+              {{ col.header }}
+            }
+          </th>
+        }
+      </tr>
+    </thead>
+
+    <tbody>
+      @for (row of visibleRows(); track config().trackBy(row); let i = $index) {
+        <tr>
+          <td class="bdt-idx">{{ i + 1 | numberAr }}</td>
+          @for (col of cfg.columns; track col.id; let first = $first) {
+            @let v = col.value(row);
+            <td [class.bdt-num]="isNumeric(col)" [class.bdt-primary]="first">
+              @switch (col.format) {
+                @case ('money') {
+                  <span [class.is-neg]="asNumber(v) < 0" [class.is-zero]="asNumber(v) === 0">
+                    {{ asNumber(v) | moneyAr }}
+                  </span>
+                }
+                @case ('number') {
+                  {{ asNumber(v) | numberAr }}
+                }
+                @default {
+                  {{ v }}
+                }
+              }
+              @if (col.badge?.(row); as badge) {
+                <app-badge class="bdt-badge" [text]="badge.label" [type]="badge.type" />
+              }
+            </td>
+          }
+        </tr>
+      } @empty {
+        <tr>
+          <td class="bdt-empty" [attr.colspan]="cfg.columns.length + 1">
+            @if (rows().length === 0) {
+              {{ cfg.emptyText }}
+            } @else {
+              لا توجد نتائج مطابقة.
+              <button type="button" class="bdt-link" (click)="clearFilters()">مسح الفلاتر</button>
+            }
+          </td>
+        </tr>
+      }
+    </tbody>
+
+    @if (hasAggregates() && visibleRows().length > 0) {
+      <tfoot>
+        <tr>
+          <td class="bdt-idx"></td>
+          @for (col of cfg.columns; track col.id; let first = $first) {
+            <td [class.bdt-num]="isNumeric(col)">
+              @if (first) {
+                إجمالي المعروض
+              } @else if (col.aggregate) {
+                @if (col.format === 'money') {
+                  {{ totals()[col.id] | moneyAr }}
+                } @else {
+                  {{ totals()[col.id] | numberAr }}
+                }
+              }
+            </td>
+          }
+        </tr>
+      </tfoot>
+    }
+  </table>
+</div>

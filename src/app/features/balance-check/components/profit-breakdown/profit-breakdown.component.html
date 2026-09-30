@@ -1,0 +1,24 @@
+<ol class="pb-list" aria-label="تفصيل صافي الأرباح">
+  @for (line of lines(); track line.key) {
+    <li class="pb-line" [class.pb-line--minus]="line.sign < 0">
+      <span class="pb-sign" aria-hidden="true">{{ line.sign > 0 ? '+' : '−' }}</span>
+      <div class="pb-text">
+        <span class="pb-label">
+          <span class="visually-hidden">{{ line.sign > 0 ? 'يُضاف' : 'يُخصم' }}:</span>
+          {{ line.label }}
+        </span>
+        <span class="pb-hint">{{ line.hint }}</span>
+        <span class="pb-bar" aria-hidden="true">
+          <span class="pb-bar__fill" [style.width.%]="line.weight"></span>
+        </span>
+      </div>
+      <span class="pb-amount">{{ line.amount | moneyAr }}</span>
+    </li>
+  }
+</ol>
+
+<div class="pb-total" [class.pb-total--loss]="profit().totalProfit < 0">
+  <span class="pb-sign" aria-hidden="true">=</span>
+  <span class="pb-total__label">صافي الأرباح</span>
+  <span class="pb-total__amount">{{ profit().totalProfit | moneyAr }}</span>
+</div>

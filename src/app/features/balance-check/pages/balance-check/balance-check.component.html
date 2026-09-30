@@ -1,0 +1,189 @@
+<!-- ── PAGE HEADER ── -->
+<div class="pgh bc-header">
+  <div>
+    <h1 class="pgt">{{ copy.title }}</h1>
+    <div class="pgs">{{ copy.subtitle }}</div>
+  </div>
+
+  <div class="bc-actions">
+    @if (lastUpdatedLabel(); as time) {
+      <span class="bc-stamp" [class.bc-stamp--busy]="loading()">
+        <span class="bc-stamp__dot" aria-hidden="true"></span>
+        آخر تحديث {{ time }}
+      </span>
+    }
+    <button
+      type="button"
+      class="btn btn-sm d-inline-flex align-items-center gap-1"
+      [disabled]="loading()"
+      (click)="refresh()"
+    >
+      @if (loading()) {
+        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+      }
+      <span>تحديث</span>
+    </button>
+    <button
+      type="button"
+      class="btn btn-sm btn-bl d-inline-flex align-items-center gap-1"
+      [disabled]="!data()"
+      (click)="exportPdf()"
+    >
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M12 3v12m0 0-4-4m4 4 4-4M5 21h14" />
+      </svg>
+      <span>تحميل PDF</span>
+    </button>
+  </div>
+</div>
+
+@let d = data();
+@let msg = error();
+
+@if (isFirstLoad()) {
+  <!-- ── SKELETON (first load only) ── -->
+  <div class="bc-skeleton" aria-busy="true" aria-label="جاري تحميل ميزان المراجعة">
+    <div class="bc-sk bc-sk--hero"></div>
+    <div class="bc-grid">
+      @for (col of [0, 1]; track col) {
+        <div class="bc-sk-col">
+          <div class="bc-sk bc-sk--head"></div>
+          @for (row of [0, 1, 2]; track row) {
+            <div class="bc-sk bc-sk--row"></div>
+          }
+        </div>
+      }
+    </div>
+  </div>
+} @else if (d) {
+  <!-- ── non-blocking refresh error (stale data kept) ── -->
+  @if (msg) {
+    <div class="alert alert-danger bc-inline-error" role="alert">
+      <span>{{ msg }}</span>
+      <button type="button" class="btn btn-sm" (click)="refresh()">إعادة المحاولة</button>
+    </div>
+  }
+
+  @let cap = captions()!;
+
+  <app-balance-status-card
+    class="bc-status"
+    [assetsTotal]="d.assets.total"
+    [obligationsTotal]="d.obligations.total"
+    [difference]="d.difference"
+    [isBalanced]="d.isBalanced"
+  />
+
+  <div class="bc-grid" [class.bc-grid--refreshing]="loading()">
+    <!-- ════════ ASSETS ════════ -->
+    <app-balance-panel
+      side="assets"
+      kicker="مدين"
+      title="الأصول"
+      subtitle="ما تملكه الشركة من نقدية ومستحقات وبضاعة"
+      totalLabel="إجمالي الأصول"
+      [total]="d.assets.total"
+      [segments]="assetSegments()"
+    >
+      <app-balance-section
+        [meta]="assetMeta.treasuries"
+        [amount]="d.assets.treasuriesTotal"
+        [share]="share(d.assets.treasuriesTotal, d.assets.total)"
+        [caption]="cap.treasuries"
+      >
+        <app-balance-detail-table [rows]="d.assets.treasuries" [config]="tables.treasuries" />
+      </app-balance-section>
+
+      <app-balance-section
+        [meta]="assetMeta.receivables"
+        [amount]="d.assets.receivables.amount"
+        [share]="share(d.assets.receivables.amount, d.assets.total)"
+        [caption]="cap.receivables"
+      >
+        <app-receivables-summary [receivables]="d.assets.receivables" />
+      </app-balance-section>
+
+      <app-balance-section
+        [meta]="assetMeta.inventory"
+        [amount]="d.assets.inventoryTotal"
+        [share]="share(d.assets.inventoryTotal, d.assets.total)"
+        [caption]="cap.inventory"
+      >
+        <app-balance-detail-table [rows]="d.assets.warehouses" [config]="tables.warehouses" />
+      </app-balance-section>
+
+      <app-balance-section
+        [meta]="assetMeta.subAccounts"
+        [amount]="d.assets.subAccountsTotal"
+        [share]="share(d.assets.subAccountsTotal, d.assets.total)"
+        [caption]="cap.subAccounts"
+      >
+        <app-balance-detail-table [rows]="d.assets.subAccounts" [config]="tables.subAccounts" />
+      </app-balance-section>
+    </app-balance-panel>
+
+    <!-- ════════ OBLIGATIONS ════════ -->
+    <app-balance-panel
+      side="obligations"
+      kicker="دائن"
+      title="الالتزامات"
+      subtitle="ما على الشركة من رأس مال وأرباح ومستحقات"
+      totalLabel="إجمالي الالتزامات"
+      [total]="d.obligations.total"
+      [segments]="obligationSegments()"
+    >
+      <app-balance-section
+        [meta]="obligationMeta.capital"
+        [amount]="d.obligations.shareholdersCapitalTotal"
+        [share]="share(d.obligations.shareholdersCapitalTotal, d.obligations.total)"
+        [caption]="cap.capital"
+      >
+        <app-balance-detail-table [rows]="d.obligations.shareholders" [config]="tables.shareholders" />
+      </app-balance-section>
+
+      <app-balance-section
+        [meta]="obligationMeta.profit"
+        [amount]="d.obligations.profit.totalProfit"
+        [share]="share(d.obligations.profit.totalProfit, d.obligations.total)"
+        [caption]="cap.profit"
+      >
+        <app-profit-breakdown [profit]="d.obligations.profit" />
+      </app-balance-section>
+
+      <app-balance-section
+        [meta]="obligationMeta.suppliers"
+        [amount]="d.obligations.supplierPayablesTotal"
+        [share]="share(d.obligations.supplierPayablesTotal, d.obligations.total)"
+        [caption]="cap.suppliers"
+      >
+        <app-balance-detail-table [rows]="d.obligations.suppliers" [config]="tables.suppliers" />
+      </app-balance-section>
+    </app-balance-panel>
+  </div>
+} @else if (msg) {
+  <!-- ── blocking error (nothing to show) ── -->
+  <div class="bc-state" role="alert">
+    <div class="bc-state__icon" [class.bc-state__icon--lock]="forbidden()" aria-hidden="true">
+      @if (forbidden()) {
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+          stroke-linecap="round" stroke-linejoin="round">
+          <rect x="4.5" y="10.5" width="15" height="10" rx="2" />
+          <path d="M8 10.5V7a4 4 0 0 1 8 0v3.5" />
+        </svg>
+      } @else {
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 3l10 17H2L12 3z" />
+          <path d="M12 10v5" />
+          <circle cx="12" cy="17.5" r=".7" fill="currentColor" />
+        </svg>
+      }
+    </div>
+    <div class="bc-state__title">{{ msg }}</div>
+    @if (!forbidden()) {
+      <div class="bc-state__sub">تحقق من الاتصال ثم أعد المحاولة.</div>
+      <button type="button" class="btn btn-sm btn-bl mt-2" (click)="refresh()">إعادة المحاولة</button>
+    }
+  </div>
+}
