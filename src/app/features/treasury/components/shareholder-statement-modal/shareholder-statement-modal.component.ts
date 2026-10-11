@@ -15,8 +15,10 @@ import { PaginationComponent } from '../../../../shared/components/pagination/pa
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { CurrencyArPipe } from '../../../../shared/pipes/currency-ar.pipe';
 import { DateArPipe } from '../../../../shared/pipes/date-ar.pipe';
+import { HasPermissionDirective } from '../../../../shared/directives/has-permission.directive';
 import { ApiError } from '../../../../core/models/api-response.model';
 import { ToastService } from '../../../../core/services/toast.service';
+import { PERMISSIONS } from '../../../../core/constants/permissions.const';
 
 import { ShareholdersService } from '../../services/shareholders.service';
 import { Shareholder } from '../../models/shareholder.model';
@@ -30,6 +32,7 @@ import {
   STATEMENT_TX_LABELS,
   isStatementInflow,
 } from '../../constants/statement-transaction-labels';
+import { ReinvestDistributedProfitModalComponent } from '../reinvest-distributed-profit-modal/reinvest-distributed-profit-modal.component';
 
 const DEFAULT_PAGE_SIZE = 10;
 const VOUCHER_PREFIX_LEN = 18;
@@ -45,6 +48,8 @@ const VOUCHER_PREFIX_LEN = 18;
     BadgeComponent,
     CurrencyArPipe,
     DateArPipe,
+    HasPermissionDirective,
+    ReinvestDistributedProfitModalComponent,
   ],
   templateUrl: './shareholder-statement-modal.component.html',
   styleUrl: './shareholder-statement-modal.component.scss',
@@ -57,6 +62,9 @@ export class ShareholderStatementModalComponent {
   private readonly service = inject(ShareholdersService);
   private readonly toast = inject(ToastService);
 
+  /** Exposed so the template can gate write actions with `*appHasPermission`. */
+  protected readonly PERMS = PERMISSIONS;
+
   protected readonly statement = signal<ShareholderStatement | null>(null);
   protected readonly loading = signal(false);
   protected readonly error = signal<string | null>(null);
@@ -64,6 +72,9 @@ export class ShareholderStatementModalComponent {
   // ── date filters (UI state — applied on explicit click) ──
   protected readonly fromDate = signal('');
   protected readonly toDate = signal('');
+
+  // ── reinvest distributed profit (child modal) ──
+  protected readonly reinvestOpen = signal(false);
 
   // ── pagination ──
   protected readonly pageIndex = signal(1);
@@ -76,6 +87,34 @@ export class ShareholderStatementModalComponent {
     const sh = this.shareholder();
     return sh ? `كشف حساب — ${sh.name}` : 'كشف حساب مساهم';
   });
+
+  /**
+   * Hero figures. The statement header is fetched alongside the ledger, so it
+   * reflects writes made from inside this modal; the `shareholder` input (a
+   * row from the parent list) is only the fallback until the first load.
+   */
+  protected readonly heroFigures = computed(() => {
+    const fresh = this.statement()?.shareholder;
+    const row = this.shareholder();
+    return {
+      contributedAmount: fresh?.contributedAmount ?? row?.contributedAmount ?? 0,
+      ownedPercentage: fresh?.ownedPercentage ?? row?.ownedPercentage ?? 0,
+      accruedProfit: fresh?.accruedProfit ?? row?.accruedProfit ?? 0,
+    };
+  });
+
+  protected readonly distributedProfitBalance = computed(
+    () => this.statement()?.distributedProfitBalance ?? 0,
+  );
+
+  protected readonly canReinvest = computed(
+    () => !this.loading() && this.distributedProfitBalance() > 0,
+  );
+
+  /** Parent modal must ignore Esc/backdrop while busy or while a child modal is on top. */
+  protected readonly dismissible = computed(
+    () => !this.loading() && !this.reinvestOpen(),
+  );
 
   protected readonly entries = computed(
     () => this.statement()?.entries.data ?? [],
@@ -94,6 +133,7 @@ export class ShareholderStatementModalComponent {
         if (!this.open() || !sh) return;
         if (sh.id === this.lastShId) return;
         this.lastShId = sh.id;
+        this.reinvestOpen.set(false);
         this.statement.set(null);
         this.error.set(null);
         this.fromDate.set('');
@@ -106,7 +146,28 @@ export class ShareholderStatementModalComponent {
   }
 
   protected close(): void {
+    if (this.reinvestOpen()) return;
     this.closed.emit();
+  }
+
+  // ─────────── reinvest distributed profit ───────────
+
+  protected openReinvest(): void {
+    if (!this.canReinvest()) return;
+    this.reinvestOpen.set(true);
+  }
+
+  protected closeReinvest(): void {
+    this.reinvestOpen.set(false);
+  }
+
+  /**
+   * Capital, ownership %, the distributed-profit card and the ledger all
+   * change — reload the whole statement from the server (cache bypassed).
+   */
+  protected onReinvested(): void {
+    this.reinvestOpen.set(false);
+    this.refresh();
   }
 
   protected refresh(): void {

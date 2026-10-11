@@ -21,6 +21,7 @@ export const PERMISSIONS = {
   vouchersFullAccess:    'Vouchers.FullAccess',
   subAccountsView:       'SubAccounts.View',
   subAccountsFullAccess: 'SubAccounts.FullAccess',
+  shareholdersFullAccess: 'Shareholders.FullAccess',
   userManagement:        'UserManagement',
 } as const;
 
@@ -54,6 +55,7 @@ export const ROLE_PERMISSIONS: Readonly<
     PERMISSIONS.treasuryView,
     PERMISSIONS.treasuryFullAccess,
     PERMISSIONS.vouchersFullAccess,
+    PERMISSIONS.shareholdersFullAccess,
     PERMISSIONS.userManagement,
   ],
   GeneralManager: [
@@ -69,6 +71,7 @@ export const ROLE_PERMISSIONS: Readonly<
     PERMISSIONS.treasuryView,
     PERMISSIONS.treasuryFullAccess,
     PERMISSIONS.vouchersFullAccess,
+    PERMISSIONS.shareholdersFullAccess,
     PERMISSIONS.userManagement,
   ],
   Supervisor: [

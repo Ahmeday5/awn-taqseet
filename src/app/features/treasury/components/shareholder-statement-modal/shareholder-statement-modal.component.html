@@ -2,8 +2,8 @@
   [open]="open()"
   [title]="title()"
   size="xl"
-  [closeOnBackdrop]="!loading()"
-  [closeOnEsc]="!loading()"
+  [closeOnBackdrop]="dismissible()"
+  [closeOnEsc]="dismissible()"
   (closed)="close()"
 >
   <!-- ── HERO ── -->
@@ -27,18 +27,19 @@
           </span>
         </div>
       </div>
+      @let hero = heroFigures();
       <div class="shst-hero-stats">
         <div class="shst-hero-stat">
           <div class="shst-hs-label">رأس المال</div>
-          <div class="shst-hs-val">{{ sh.contributedAmount | currencyAr: true }}</div>
+          <div class="shst-hs-val">{{ hero.contributedAmount | currencyAr: true }}</div>
         </div>
         <div class="shst-hero-stat">
           <div class="shst-hs-label">الملكية</div>
-          <div class="shst-hs-val shst-bl">{{ sh.ownedPercentage | number: '1.0-2' }}%</div>
+          <div class="shst-hs-val shst-bl">{{ hero.ownedPercentage | number: '1.0-2' }}%</div>
         </div>
         <div class="shst-hero-stat">
           <div class="shst-hs-label">مستحق</div>
-          <div class="shst-hs-val shst-te">{{ sh.accruedProfit | currencyAr: true }}</div>
+          <div class="shst-hs-val shst-te">{{ hero.accruedProfit | currencyAr: true }}</div>
         </div>
       </div>
     </section>
@@ -61,7 +62,19 @@
       </div>
       <div class="shst-sc shst-sc-dist">
         <div class="shst-sc-label">أرباح موزّعة</div>
-        <div class="shst-sc-val">{{ st.totalProfitDistributed | currencyAr: true }}</div>
+        <div class="shst-sc-val">{{ st.distributedProfitBalance | currencyAr: true }}</div>
+        <div class="shst-sc-sub">
+          إجمالي الموزع: {{ st.totalProfitDistributed | currencyAr: true }}
+          — أضيف لرأس المال: {{ st.totalDistributedProfitReinvested | currencyAr: true }}
+        </div>
+        <button
+          *appHasPermission="PERMS.shareholdersFullAccess"
+          type="button"
+          class="btn btn-sm btn-te shst-sc-action"
+          [disabled]="!canReinvest()"
+          [title]="canReinvest() ? '' : 'لا يوجد رصيد أرباح موزعة متاح للإضافة'"
+          (click)="openReinvest()"
+        >إضافة لرأس المال</button>
       </div>
       <div class="shst-sc shst-sc-acc">
         <div class="shst-sc-label">أرباح مستحقة</div>
@@ -200,3 +213,12 @@
     <button type="button" class="btn" (click)="close()">إغلاق</button>
   </ng-container>
 </app-modal>
+
+<app-reinvest-distributed-profit-modal
+  [open]="reinvestOpen()"
+  [shareholderId]="shareholder()?.id ?? null"
+  [availableBalance]="distributedProfitBalance()"
+  [currentCapital]="heroFigures().contributedAmount"
+  (closed)="closeReinvest()"
+  (reinvested)="onReinvested()"
+/>

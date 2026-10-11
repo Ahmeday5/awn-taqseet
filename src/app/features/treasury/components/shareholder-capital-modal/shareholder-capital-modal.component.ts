@@ -39,6 +39,8 @@ import {
   CAPITAL_TX_DIRECTION_BADGE,
   CAPITAL_TX_DIRECTION_LABELS,
   CAPITAL_TX_TYPE_OPTIONS,
+  canDeleteCapitalTx,
+  canEditCapitalTx,
   isCapitalInflow,
 } from '../../constants/capital-transaction-labels';
 import { CapitalTransactionEditModalComponent } from '../capital-transaction-edit-modal/capital-transaction-edit-modal.component';
@@ -140,7 +142,7 @@ export class ShareholderCapitalModalComponent {
   protected readonly count = signal(0);
   protected readonly totalPages = signal(0);
 
-  // ── ledger row edit/delete (deposit/withdrawal rows only) ──
+  // ── ledger row edit/delete (capabilities per direction — see canEditCapitalTx/canDeleteCapitalTx) ──
   protected readonly editOpen = signal(false);
   protected readonly editingTx = signal<CapitalTransaction | null>(null);
   protected readonly deletingId = signal<number | null>(null);
@@ -428,13 +430,14 @@ export class ShareholderCapitalModalComponent {
     return isCapitalInflow(direction);
   }
 
-  /** Only plain deposits/withdrawals can be edited/deleted — not profit-capitalisation rows. */
-  protected isEditableRow(t: CapitalTransaction): boolean {
-    return (
-      t.direction === 'Deposit' ||
-      t.direction === 'Withdrawal' ||
-      t.direction === 'Payment'
-    );
+  /** Only plain deposits/withdrawals can be edited in place. */
+  protected canEdit(t: CapitalTransaction): boolean {
+    return canEditCapitalTx(t.direction);
+  }
+
+  /** Deposits/withdrawals and distributed-profit reinvestments can be deleted. */
+  protected canDelete(t: CapitalTransaction): boolean {
+    return canDeleteCapitalTx(t.direction);
   }
 
   // ─────────── row edit ───────────

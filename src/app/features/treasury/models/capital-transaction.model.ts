@@ -7,7 +7,8 @@ export type CapitalTransactionDirection =
   | 'Deposit'
   | 'Withdrawal'
   | 'Payment'
-  | 'ProfitCapitalization';
+  | 'ProfitCapitalization'
+  | 'DistributedProfitReinvestment';
 
 /** Row shape returned by `GET /shareholders/{id}/capital-transactions` (paged). */
 export interface CapitalTransaction {
@@ -51,6 +52,18 @@ export interface CapitalizeProfitPayload {
   /** `yyyy-MM-dd` — calendar date, not a timestamp. */
   date: string;
   notes: string;
+}
+
+/**
+ * POST /shareholders/{id}/reinvest-distributed-profit — books part of the
+ * shareholder's already-distributed profit back into capital. Ledger-only:
+ * no treasury is debited or credited, hence no treasury id.
+ */
+export interface ReinvestDistributedProfitPayload {
+  amount: number;
+  /** `yyyy-MM-dd` — omitted to let the server default to today. */
+  date?: string;
+  notes?: string;
 }
 
 /** POST /shareholders/capitalize-all-profits — rolls every shareholder's AccruedProfit into capital. */

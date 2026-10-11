@@ -321,27 +321,31 @@
             <td class="fs-10">{{ t.userName || '—' }}</td>
             <td class="cap-notes" [title]="t.notes ?? ''">{{ t.notes || '—' }}</td>
             <td>
-              @if (isEditableRow(t)) {
+              @if (canEdit(t) || canDelete(t)) {
                 <div class="d-inline-flex gap-1">
-                  <button
-                    type="button"
-                    class="btn btn-sm btn-bl"
-                    [disabled]="txLoading() || deletingId() === t.id"
-                    (click)="openEdit(t)"
-                    title="تعديل"
-                  >تعديل</button>
-                  <button
-                    type="button"
-                    class="btn btn-sm btn-re d-inline-flex align-items-center gap-1"
-                    [disabled]="txLoading() || deletingId() === t.id"
-                    (click)="confirmDeleteTx(t)"
-                    title="حذف"
-                  >
-                    @if (deletingId() === t.id) {
-                      <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                    }
-                    <span>حذف</span>
-                  </button>
+                  @if (canEdit(t)) {
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-bl"
+                      [disabled]="txLoading() || deletingId() === t.id"
+                      (click)="openEdit(t)"
+                      title="تعديل"
+                    >تعديل</button>
+                  }
+                  @if (canDelete(t)) {
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-re d-inline-flex align-items-center gap-1"
+                      [disabled]="txLoading() || deletingId() === t.id"
+                      (click)="confirmDeleteTx(t)"
+                      title="حذف"
+                    >
+                      @if (deletingId() === t.id) {
+                        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                      }
+                      <span>حذف</span>
+                    </button>
+                  }
                 </div>
               }
             </td>

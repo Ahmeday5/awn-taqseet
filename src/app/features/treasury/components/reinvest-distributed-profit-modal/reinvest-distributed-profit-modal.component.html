@@ -1,0 +1,102 @@
+<app-modal
+  [open]="open()"
+  title="إضافة الأرباح الموزعة لرأس المال"
+  size="md"
+  [closeOnBackdrop]="!submitting()"
+  [closeOnEsc]="!submitting()"
+  (closed)="close()"
+>
+  <!-- ── SUMMARY ── -->
+  <div class="rdp-summary">
+    <div class="rdp-summary-item">
+      <span class="rdp-label">المتاح للإضافة</span>
+      <span class="rdp-value rdp-accent">{{ maxAmount() | currencyAr: true }}</span>
+    </div>
+    <div class="rdp-summary-item">
+      <span class="rdp-label">رأس المال الحالي</span>
+      <span class="rdp-value">{{ currentCapital() | currencyAr: true }}</span>
+    </div>
+  </div>
+
+  <form [formGroup]="form" (ngSubmit)="submit()" novalidate autocomplete="off">
+    <div class="row g-3">
+      <div class="col-12 col-md-6">
+        <label class="form-label d-flex justify-content-between align-items-center" for="rdp-amount">
+          <span>المبلغ</span>
+          @if (hasBalance()) {
+            <button type="button" class="rdp-link" [disabled]="submitting()" (click)="useFullBalance()">
+              كامل المتاح
+            </button>
+          }
+        </label>
+        <input
+          id="rdp-amount"
+          type="number"
+          class="form-control"
+          formControlName="amount"
+          [min]="0.01"
+          [max]="maxAmount()"
+          step="0.01"
+          dir="ltr"
+          placeholder="0"
+          [class.is-invalid]="isInvalid('amount')"
+        />
+        <app-form-error [control]="form.controls.amount" label="المبلغ" />
+      </div>
+
+      <div class="col-12 col-md-6">
+        <label class="form-label" for="rdp-date">التاريخ</label>
+        <input
+          id="rdp-date"
+          type="date"
+          class="form-control"
+          formControlName="date"
+          dir="ltr"
+        />
+      </div>
+
+      <div class="col-12">
+        <label class="form-label" for="rdp-notes">ملاحظات</label>
+        <input
+          id="rdp-notes"
+          type="text"
+          class="form-control"
+          formControlName="notes"
+          autocomplete="off"
+          placeholder="(اختياري)"
+        />
+      </div>
+    </div>
+
+    <!-- projection -->
+    <div class="rdp-projection">
+      <div>
+        <span class="rdp-projection-label">رأس المال بعد الإضافة:</span>
+        <span class="rdp-projection-val rdp-accent">{{ projectedCapital() | currencyAr: true }}</span>
+      </div>
+      <div>
+        <span class="rdp-projection-label">المتبقي من الأرباح الموزعة:</span>
+        <span class="rdp-projection-val">{{ remainingBalance() | currencyAr: true }}</span>
+      </div>
+    </div>
+
+    <div class="rdp-note" role="note">
+      عملية دفترية: تُضاف القيمة إلى رأس مال المساهم دون أي تأثير على أرصدة الخزن.
+    </div>
+  </form>
+
+  <ng-container modal-footer>
+    <button type="button" class="btn" [disabled]="submitting()" (click)="close()">إلغاء</button>
+    <button
+      type="button"
+      class="btn btn-gr d-inline-flex align-items-center gap-2"
+      [disabled]="submitting() || form.invalid || !hasBalance()"
+      (click)="submit()"
+    >
+      @if (submitting()) {
+        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+      }
+      <span>{{ submitting() ? 'جاري الإضافة...' : 'إضافة لرأس المال' }}</span>
+    </button>
+  </ng-container>
+</app-modal>

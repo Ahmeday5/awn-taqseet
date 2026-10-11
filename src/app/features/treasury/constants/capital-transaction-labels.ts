@@ -17,7 +17,7 @@ export const CAPITAL_TX_TYPE_OPTIONS: ReadonlyArray<{
 ];
 
 /* ────────────────────────────────────────────────────────────────
-   Server direction — Deposit / Payment / ProfitCapitalization
+   Server direction — Deposit / Payment / ProfitCapitalization / …
    ──────────────────────────────────────────────────────────────── */
 
 export const CAPITAL_TX_DIRECTION_LABELS: Readonly<
@@ -27,6 +27,7 @@ export const CAPITAL_TX_DIRECTION_LABELS: Readonly<
   Withdrawal: 'سحب',
   Payment: 'سحب',
   ProfitCapitalization: 'ترحيل أرباح',
+  DistributedProfitReinvestment: 'إضافة أرباح موزعة لرأس المال',
 };
 
 export const CAPITAL_TX_DIRECTION_BADGE: Readonly<
@@ -36,11 +37,44 @@ export const CAPITAL_TX_DIRECTION_BADGE: Readonly<
   Withdrawal: 'bad',
   Payment: 'bad',
   ProfitCapitalization: 'purple',
+  DistributedProfitReinvestment: 'pink',
 };
+
+const CAPITAL_INFLOW_DIRECTIONS: ReadonlySet<CapitalTransactionDirection> =
+  new Set(['Deposit', 'ProfitCapitalization', 'DistributedProfitReinvestment']);
 
 /** A movement that increases the shareholder's capital (used for sign/colour). */
 export function isCapitalInflow(
   direction: CapitalTransactionDirection,
 ): boolean {
-  return direction === 'Deposit' || direction === 'ProfitCapitalization';
+  return CAPITAL_INFLOW_DIRECTIONS.has(direction);
+}
+
+/* ────────────────────────────────────────────────────────────────
+   Row capabilities — mirror what the API accepts per direction
+   ──────────────────────────────────────────────────────────────── */
+
+/** Directions the API lets us edit in place (PUT). */
+const EDITABLE_DIRECTIONS: ReadonlySet<CapitalTransactionDirection> = new Set([
+  'Deposit',
+  'Withdrawal',
+  'Payment',
+]);
+
+/**
+ * Directions the API lets us delete. Deleting a distributed-profit
+ * reinvestment returns its amount to the shareholder's distributed-profit
+ * balance; profit-capitalisation rows stay immutable.
+ */
+const DELETABLE_DIRECTIONS: ReadonlySet<CapitalTransactionDirection> = new Set([
+  ...EDITABLE_DIRECTIONS,
+  'DistributedProfitReinvestment',
+]);
+
+export function canEditCapitalTx(direction: CapitalTransactionDirection): boolean {
+  return EDITABLE_DIRECTIONS.has(direction);
+}
+
+export function canDeleteCapitalTx(direction: CapitalTransactionDirection): boolean {
+  return DELETABLE_DIRECTIONS.has(direction);
 }

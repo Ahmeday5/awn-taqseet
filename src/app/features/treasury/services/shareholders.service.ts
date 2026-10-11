@@ -31,6 +31,7 @@ import {
   CapitalTransaction,
   CapitalTransactionsQuery,
   CreateCapitalTransactionPayload,
+  ReinvestDistributedProfitPayload,
   UpdateCapitalTransactionPayload,
 } from '../models/capital-transaction.model';
 import {
@@ -239,6 +240,27 @@ export class ShareholdersService {
   }
 
   /**
+   * Books part of a shareholder's already-distributed profit back into their
+   * capital. Ledger-only (no treasury balance moves), but capital and every
+   * partner's ownership % shift, so both scopes are invalidated to keep
+   * shareholder lists and treasury-side views consistent.
+   */
+  reinvestDistributedProfit(
+    shareholderId: number,
+    payload: ReinvestDistributedProfitPayload,
+  ): Observable<CapitalTransaction> {
+    return this.api.post<CapitalTransaction>(
+      API_ENDPOINTS.shareholders.reinvestDistributedProfit(shareholderId),
+      payload,
+      {
+        context: withInlineHandling(
+          withCacheInvalidate([SHAREHOLDERS_CACHE_KEY, TREASURY_CACHE_KEY]),
+        ),
+      },
+    );
+  }
+
+  /**
    * Rolls every shareholder's AccruedProfit into their capital in one shot.
    * Invalidates both shareholders and treasury scopes (balances + percentages shift).
    */
@@ -297,8 +319,10 @@ export class ShareholdersService {
   }
 
   /**
-   * Deletes a previously recorded deposit/withdrawal (not available for
-   * profit-capitalisation rows). Recomputes ownership %, so both scopes are invalidated.
+   * Deletes a deposit/withdrawal or a distributed-profit reinvestment (the
+   * latter returns its amount to the distributed-profit balance). Not
+   * available for profit-capitalisation rows. Recomputes ownership %, so both
+   * scopes are invalidated.
    */
   deleteCapitalTransaction(
     shareholderId: number,

@@ -102,6 +102,26 @@
 .shst-sc-wit .shst-sc-val { color: var(--re, #c0392b); }
 .shst-sc-cap .shst-sc-val { color: var(--pu, #5c5a7a); }
 .shst-sc-dist .shst-sc-val { color: var(--te); }
+
+.shst-sc-dist {
+  display: flex;
+  flex-direction: column;
+  flex-basis: 220px;
+}
+
+.shst-sc-sub {
+  font-size: 9.5px;
+  color: var(--txt3);
+  margin-top: 3px;
+  line-height: 1.5;
+}
+
+.shst-sc-action {
+  align-self: flex-start;
+  margin-top: 8px;
+  font-size: 10.5px;
+  padding: 2px 10px;
+}
 .shst-sc-acc .shst-sc-val { color: var(--txt1); }
 
 // ── date filter ──

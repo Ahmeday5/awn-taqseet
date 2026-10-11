@@ -6,6 +6,7 @@ export const STATEMENT_TX_LABELS: Readonly<Record<StatementTransactionType, stri
   CapitalWithdrawal: 'سحب رأس مال',
   ProfitCapitalization: 'ترحيل أرباح',
   ProfitDistribution: 'توزيع أرباح',
+  DistributedProfitReinvestment: 'إضافة أرباح موزعة لرأس المال',
 };
 
 export const STATEMENT_TX_BADGE: Readonly<Record<StatementTransactionType, BadgeType>> = {
@@ -13,6 +14,7 @@ export const STATEMENT_TX_BADGE: Readonly<Record<StatementTransactionType, Badge
   CapitalWithdrawal: 'bad',
   ProfitCapitalization: 'purple',
   ProfitDistribution: 'teal',
+  DistributedProfitReinvestment: 'pink',
 };
 
 /** Returns true when the transaction adds to or pays out from the shareholder's stake. */
