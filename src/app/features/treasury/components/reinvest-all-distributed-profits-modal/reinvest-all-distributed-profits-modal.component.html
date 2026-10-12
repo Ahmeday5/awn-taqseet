@@ -1,0 +1,101 @@
+<app-modal
+  [open]="open()"
+  [title]="result() ? 'ملخص إضافة الأرباح الموزعة' : 'إضافة الأرباح الموزعة لرأس مال الكل'"
+  [size]="result() ? 'lg' : 'md'"
+  [closeOnBackdrop]="!submitting()"
+  [closeOnEsc]="!submitting()"
+  (closed)="close()"
+>
+  @if (result(); as r) {
+    <!-- ── SUMMARY STEP ── -->
+    <div class="rad-summary">
+      <div class="rad-summary-item">
+        <span class="rad-label">إجمالي المضاف لرأس المال</span>
+        <span class="rad-value rad-accent">{{ r.totalReinvested | currencyAr: true }}</span>
+      </div>
+      <div class="rad-summary-item">
+        <span class="rad-label">عدد المساهمين</span>
+        <span class="rad-value">{{ r.lines.length }}</span>
+      </div>
+    </div>
+
+    <div class="tw mb-0">
+      <table>
+        <thead>
+          <tr>
+            <th>المساهم</th>
+            <th class="text-end">المبلغ المضاف</th>
+            <th class="text-end">رأس المال بعد الإضافة</th>
+            <th>رقم السند</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (line of r.lines; track line.shareholderId) {
+            <tr>
+              <td class="fw-600">{{ line.shareholderName }}</td>
+              <td class="text-end rad-accent fw-600">{{ line.amount | currencyAr: true }}</td>
+              <td class="text-end">{{ line.contributedAmountAfter | currencyAr: true }}</td>
+              <td class="rad-voucher" dir="ltr" [title]="line.voucherNumber">{{ line.voucherNumber || '—' }}</td>
+            </tr>
+          }
+        </tbody>
+        <tfoot>
+          <tr class="rad-total-row">
+            <td class="fw-600">الإجمالي</td>
+            <td class="text-end rad-accent">{{ r.totalReinvested | currencyAr: true }}</td>
+            <td></td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  } @else {
+    <!-- ── CONFIRM STEP ── -->
+    <div class="rad-warn" role="alert">
+      سيتم إضافة كامل رصيد الأرباح الموزعة المتاح لكل مساهم إلى رأس ماله.
+    </div>
+
+    <form [formGroup]="form" (ngSubmit)="submit()" novalidate autocomplete="off">
+      <div class="row g-3">
+        <div class="col-12 col-md-6">
+          <label class="form-label" for="rad-date">التاريخ</label>
+          <input id="rad-date" type="date" class="form-control" formControlName="date" dir="ltr" />
+        </div>
+        <div class="col-12 col-md-6">
+          <label class="form-label" for="rad-notes">ملاحظات</label>
+          <input
+            id="rad-notes"
+            type="text"
+            class="form-control"
+            formControlName="notes"
+            autocomplete="off"
+            placeholder="(اختياري)"
+          />
+        </div>
+      </div>
+    </form>
+
+    <div class="rad-note" role="note">
+      عملية دفترية: لا تتأثر أرصدة الخزن، لكن رأس مال كل مساهم ونسب الملكية ستتغير.
+    </div>
+  }
+
+  <ng-container modal-footer>
+    @if (result()) {
+      <button type="button" class="btn btn-bl" (click)="close()">إغلاق</button>
+    } @else {
+      <button type="button" class="btn" [disabled]="submitting()" (click)="close()">إلغاء</button>
+      <button
+        type="button"
+        class="btn btn-gr d-inline-flex align-items-center gap-2"
+        [disabled]="submitting()"
+        (click)="submit()"
+      >
+        @if (submitting()) {
+          <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+        }
+        <span>{{ submitting() ? 'جاري الإضافة...' : 'تأكيد الإضافة' }}</span>
+      </button>
+    }
+  </ng-container>
+</app-modal>

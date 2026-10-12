@@ -62,19 +62,28 @@
       </div>
       <div class="shst-sc shst-sc-dist">
         <div class="shst-sc-label">أرباح موزّعة</div>
-        <div class="shst-sc-val">{{ st.distributedProfitBalance | currencyAr: true }}</div>
+        <div class="shst-sc-val">{{ st.totalProfitDistributed | currencyAr: true }}</div>
         <div class="shst-sc-sub">
-          إجمالي الموزع: {{ st.totalProfitDistributed | currencyAr: true }}
-          — أضيف لرأس المال: {{ st.totalDistributedProfitReinvested | currencyAr: true }}
+          مضاف لرأس المال: {{ st.totalDistributedProfitReinvested | currencyAr: true }}
+          — مصروف: {{ st.totalDistributedProfitWithdrawn | currencyAr: true }}
+          — المتاح: <strong>{{ st.distributedProfitBalance | currencyAr: true }}</strong>
         </div>
-        <button
-          *appHasPermission="PERMS.shareholdersFullAccess"
-          type="button"
-          class="btn btn-sm btn-te shst-sc-action"
-          [disabled]="!canReinvest()"
-          [title]="canReinvest() ? '' : 'لا يوجد رصيد أرباح موزعة متاح للإضافة'"
-          (click)="openReinvest()"
-        >إضافة لرأس المال</button>
+        <div *appHasPermission="PERMS.shareholdersFullAccess" class="shst-sc-actions">
+          <button
+            type="button"
+            class="btn btn-sm btn-gr"
+            [disabled]="!hasDistributedBalance()"
+            [title]="hasDistributedBalance() ? '' : 'لا يوجد رصيد أرباح موزعة متاح'"
+            (click)="openReinvest()"
+          >إضافة لرأس المال</button>
+          <button
+            type="button"
+            class="btn btn-sm btn-am"
+            [disabled]="!hasDistributedBalance()"
+            [title]="hasDistributedBalance() ? '' : 'لا يوجد رصيد أرباح موزعة متاح'"
+            (click)="openWithdraw()"
+          >صرف</button>
+        </div>
       </div>
       <div class="shst-sc shst-sc-acc">
         <div class="shst-sc-label">أرباح مستحقة</div>
@@ -150,6 +159,9 @@
           <th class="shst-w-amount">الرصيد بعد</th>
           <th class="shst-w-treasury">الخزينة</th>
           <th>ملاحظات</th>
+          @if (canManage()) {
+            <th class="shst-w-actions text-center">إجراءات</th>
+          }
         </tr>
       </thead>
       <tbody>
@@ -175,14 +187,36 @@
               {{ e.companyShare != null ? (e.companyShare | currencyAr: true) : '—' }}
             </td>
             <td style="color:var(--bl);font-weight:700">
-              {{ e.capitalBalanceAfter | currencyAr: true }}
+              @if (affectsCapital(e.transactionType)) {
+                {{ e.capitalBalanceAfter | currencyAr: true }}
+              } @else {
+                <span style="color:var(--txt3);font-weight:400">—</span>
+              }
             </td>
             <td class="shst-treasury">{{ e.treasuryName || '—' }}</td>
             <td class="shst-notes" [title]="e.notes ?? ''">{{ e.notes || '—' }}</td>
+            @if (canManage()) {
+              <td class="text-center">
+                @if (canDelete(e)) {
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-re d-inline-flex align-items-center gap-1"
+                    [disabled]="deletingId() != null || loading()"
+                    title="إلغاء العملية"
+                    (click)="confirmDeleteEntry(e)"
+                  >
+                    @if (deletingId() === e.id) {
+                      <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                    }
+                    <span>حذف</span>
+                  </button>
+                }
+              </td>
+            }
           </tr>
         } @empty {
           <tr>
-            <td colspan="9" class="text-center py-4" style="color:var(--txt3);font-size:12px">
+            <td [attr.colspan]="canManage() ? 10 : 9" class="text-center py-4" style="color:var(--txt3);font-size:12px">
               @if (loading()) {
                 جاري التحميل...
               } @else if (hasFilters()) {
@@ -221,4 +255,12 @@
   [currentCapital]="heroFigures().contributedAmount"
   (closed)="closeReinvest()"
   (reinvested)="onReinvested()"
+/>
+
+<app-withdraw-distributed-profit-modal
+  [open]="withdrawOpen()"
+  [shareholderId]="shareholder()?.id ?? null"
+  [availableBalance]="distributedProfitBalance()"
+  (closed)="closeWithdraw()"
+  (withdrawn)="onWithdrawn()"
 />

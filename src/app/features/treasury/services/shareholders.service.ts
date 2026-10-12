@@ -31,8 +31,11 @@ import {
   CapitalTransaction,
   CapitalTransactionsQuery,
   CreateCapitalTransactionPayload,
+  ReinvestAllDistributedProfitsPayload,
+  ReinvestAllDistributedProfitsResult,
   ReinvestDistributedProfitPayload,
   UpdateCapitalTransactionPayload,
+  WithdrawDistributedProfitPayload,
 } from '../models/capital-transaction.model';
 import {
   ShareholderStatement,
@@ -261,6 +264,45 @@ export class ShareholdersService {
   }
 
   /**
+   * Pays part of a shareholder's distributed profit out in cash from the
+   * chosen treasury. Capital is untouched, but the treasury balance moves, so
+   * both scopes are invalidated.
+   */
+  withdrawDistributedProfit(
+    shareholderId: number,
+    payload: WithdrawDistributedProfitPayload,
+  ): Observable<unknown> {
+    return this.api.post<unknown>(
+      API_ENDPOINTS.shareholders.withdrawDistributedProfit(shareholderId),
+      payload,
+      {
+        context: withInlineHandling(
+          withCacheInvalidate([SHAREHOLDERS_CACHE_KEY, TREASURY_CACHE_KEY]),
+        ),
+      },
+    );
+  }
+
+  /**
+   * Books every shareholder's full distributed-profit balance into their
+   * capital in one shot. Ledger-only, but every partner's capital and
+   * ownership % shift, so both scopes are invalidated.
+   */
+  reinvestAllDistributedProfits(
+    payload: ReinvestAllDistributedProfitsPayload,
+  ): Observable<ReinvestAllDistributedProfitsResult> {
+    return this.api.post<ReinvestAllDistributedProfitsResult>(
+      API_ENDPOINTS.shareholders.reinvestAllDistributedProfits,
+      payload,
+      {
+        context: withInlineHandling(
+          withCacheInvalidate([SHAREHOLDERS_CACHE_KEY, TREASURY_CACHE_KEY]),
+        ),
+      },
+    );
+  }
+
+  /**
    * Rolls every shareholder's AccruedProfit into their capital in one shot.
    * Invalidates both shareholders and treasury scopes (balances + percentages shift).
    */
@@ -319,8 +361,9 @@ export class ShareholdersService {
   }
 
   /**
-   * Deletes a deposit/withdrawal or a distributed-profit reinvestment (the
-   * latter returns its amount to the distributed-profit balance). Not
+   * Deletes a deposit/withdrawal or a distributed-profit reinvestment/cash
+   * withdrawal (the latter two return their amount to the distributed-profit
+   * balance; a withdrawal also refunds its treasury). Not
    * available for profit-capitalisation rows. Recomputes ownership %, so both
    * scopes are invalidated.
    */

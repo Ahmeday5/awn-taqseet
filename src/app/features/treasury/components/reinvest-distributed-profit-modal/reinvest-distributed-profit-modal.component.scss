@@ -32,6 +32,15 @@
   color: var(--te);
 }
 
+.rdp-avail {
+  font-size: 10.5px;
+  color: var(--txt3);
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .rdp-link {
   border: 0;
   background: transparent;

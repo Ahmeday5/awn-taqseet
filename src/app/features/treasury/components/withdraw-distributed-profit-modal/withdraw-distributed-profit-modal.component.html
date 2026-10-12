@@ -1,0 +1,98 @@
+<app-modal
+  [open]="open()"
+  title="صرف أرباح موزعة"
+  size="md"
+  [closeOnBackdrop]="!submitting()"
+  [closeOnEsc]="!submitting()"
+  (closed)="close()"
+>
+  <form [formGroup]="form" (ngSubmit)="submit()" novalidate autocomplete="off">
+    <div class="row g-3">
+      <div class="col-12 col-md-6">
+        <label class="form-label d-flex justify-content-between align-items-center gap-2" for="wdp-amount">
+          <span>المبلغ</span>
+          <span class="wdp-avail">
+            المتاح: {{ maxAmount() | currencyAr: true }}
+            @if (hasBalance()) {
+              <button type="button" class="wdp-link" [disabled]="submitting()" (click)="useFullBalance()">
+                الكل
+              </button>
+            }
+          </span>
+        </label>
+        <input
+          id="wdp-amount"
+          type="number"
+          class="form-control"
+          formControlName="amount"
+          [min]="0.01"
+          [max]="maxAmount()"
+          step="0.01"
+          dir="ltr"
+          placeholder="0"
+          [class.is-invalid]="isInvalid('amount')"
+        />
+        <app-form-error [control]="form.controls.amount" label="المبلغ" />
+      </div>
+
+      <div class="col-12 col-md-6">
+        <label class="form-label" for="wdp-date">التاريخ</label>
+        <input
+          id="wdp-date"
+          type="date"
+          class="form-control"
+          formControlName="date"
+          dir="ltr"
+        />
+      </div>
+
+      <div class="col-12">
+        <label class="form-label">الخزينة</label>
+        <app-searchable-select
+          formControlName="treasuryId"
+          [options]="treasuryOptions()"
+          [isDisabled]="treasuriesLoading() || submitting()"
+          placeholder="اختر الخزينة"
+          searchPlaceholder="ابحث باسم الخزينة…"
+        />
+        <app-form-error [control]="form.controls.treasuryId" label="الخزينة" />
+      </div>
+
+      <div class="col-12">
+        <label class="form-label" for="wdp-notes">ملاحظات</label>
+        <input
+          id="wdp-notes"
+          type="text"
+          class="form-control"
+          formControlName="notes"
+          autocomplete="off"
+          placeholder="(اختياري)"
+        />
+      </div>
+    </div>
+
+    <div class="wdp-projection">
+      <span class="wdp-projection-label">المتبقي من الأرباح الموزعة:</span>
+      <span class="wdp-projection-val">{{ remainingBalance() | currencyAr: true }}</span>
+    </div>
+
+    <div class="wdp-note" role="note">
+      سيتم خصم المبلغ من رصيد الخزنة المختارة، ولن يتأثر رأس مال المساهم.
+    </div>
+  </form>
+
+  <ng-container modal-footer>
+    <button type="button" class="btn" [disabled]="submitting()" (click)="close()">إلغاء</button>
+    <button
+      type="button"
+      class="btn btn-am d-inline-flex align-items-center gap-2"
+      [disabled]="submitting() || form.invalid || !hasBalance()"
+      (click)="submit()"
+    >
+      @if (submitting()) {
+        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+      }
+      <span>{{ submitting() ? 'جاري الصرف...' : 'صرف' }}</span>
+    </button>
+  </ng-container>
+</app-modal>

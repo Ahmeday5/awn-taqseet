@@ -37,7 +37,7 @@ export const CAPITAL_TX_DIRECTION_BADGE: Readonly<
   Withdrawal: 'bad',
   Payment: 'bad',
   ProfitCapitalization: 'purple',
-  DistributedProfitReinvestment: 'pink',
+  DistributedProfitReinvestment: 'ok',
 };
 
 const CAPITAL_INFLOW_DIRECTIONS: ReadonlySet<CapitalTransactionDirection> =

@@ -66,6 +66,39 @@ export interface ReinvestDistributedProfitPayload {
   notes?: string;
 }
 
+/**
+ * POST /shareholders/{id}/withdraw-distributed-profit — pays part of the
+ * shareholder's distributed profit out in cash from the chosen treasury.
+ * Capital is untouched.
+ */
+export interface WithdrawDistributedProfitPayload {
+  amount: number;
+  treasuryId: number;
+  /** `yyyy-MM-dd` — omitted to let the server default to today. */
+  date?: string;
+  notes?: string;
+}
+
+/** POST /shareholders/reinvest-all-distributed-profits — books every shareholder's full balance into capital. */
+export interface ReinvestAllDistributedProfitsPayload {
+  /** `yyyy-MM-dd` — omitted to let the server default to today. */
+  date?: string;
+  notes?: string;
+}
+
+export interface ReinvestAllDistributedProfitsLine {
+  shareholderId: number;
+  shareholderName: string;
+  amount: number;
+  contributedAmountAfter: number;
+  voucherNumber: string;
+}
+
+export interface ReinvestAllDistributedProfitsResult {
+  totalReinvested: number;
+  lines: ReinvestAllDistributedProfitsLine[];
+}
+
 /** POST /shareholders/capitalize-all-profits — rolls every shareholder's AccruedProfit into capital. */
 export interface CapitalizeAllProfitsPayload {
   profitsTreasuryId: number;

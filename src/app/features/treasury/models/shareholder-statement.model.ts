@@ -3,7 +3,8 @@ export type StatementTransactionType =
   | 'CapitalWithdrawal'
   | 'ProfitCapitalization'
   | 'ProfitDistribution'
-  | 'DistributedProfitReinvestment';
+  | 'DistributedProfitReinvestment'
+  | 'DistributedProfitWithdrawal';
 
 export interface StatementEntry {
   id: number;
@@ -42,7 +43,9 @@ export interface ShareholderStatement {
   totalProfitDistributed: number;
   /** Portion of `totalProfitDistributed` already booked back into capital. */
   totalDistributedProfitReinvested: number;
-  /** Distributed profit still eligible for reinvestment (`totalProfitDistributed − totalDistributedProfitReinvested`). */
+  /** Portion of `totalProfitDistributed` already paid out in cash. */
+  totalDistributedProfitWithdrawn: number;
+  /** Distributed profit still available (`totalProfitDistributed − reinvested − withdrawn`). */
   distributedProfitBalance: number;
   accruedProfit: number;
   entries: {

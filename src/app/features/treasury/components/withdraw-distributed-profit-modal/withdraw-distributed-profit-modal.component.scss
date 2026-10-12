@@ -1,0 +1,55 @@
+:host { display: contents; }
+
+.wdp-avail {
+  font-size: 10.5px;
+  color: var(--txt3);
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.wdp-link {
+  border: 0;
+  background: transparent;
+  color: var(--bl);
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.wdp-projection {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-radius: var(--r, 8px);
+  background: var(--bg2, #f9fafb);
+  font-size: 11.5px;
+}
+
+.wdp-projection-label {
+  color: var(--txt2);
+}
+
+.wdp-projection-val {
+  font-weight: 800;
+}
+
+.wdp-note {
+  font-size: 11px;
+  color: var(--txt3);
+  background: var(--bg2, #f9fafb);
+  border-inline-start: 3px solid var(--am, #d97706);
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin-top: 10px;
+}

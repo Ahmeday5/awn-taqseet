@@ -18,21 +18,28 @@ import { DateArPipe } from '../../../../shared/pipes/date-ar.pipe';
 import { HasPermissionDirective } from '../../../../shared/directives/has-permission.directive';
 import { ApiError } from '../../../../core/models/api-response.model';
 import { ToastService } from '../../../../core/services/toast.service';
+import { DialogService } from '../../../../core/services/dialog.service';
+import { AuthService } from '../../../../core/services/auth.service';
 import { PERMISSIONS } from '../../../../core/constants/permissions.const';
+import { apiErrorToMessage } from '../../../../core/utils/api-error.util';
 
 import { ShareholdersService } from '../../services/shareholders.service';
 import { Shareholder } from '../../models/shareholder.model';
 import {
   ShareholderStatement,
+  StatementEntry,
   StatementQuery,
   StatementTransactionType,
 } from '../../models/shareholder-statement.model';
 import {
   STATEMENT_TX_BADGE,
   STATEMENT_TX_LABELS,
+  affectsCapital,
+  canDeleteStatementEntry,
   isStatementInflow,
 } from '../../constants/statement-transaction-labels';
 import { ReinvestDistributedProfitModalComponent } from '../reinvest-distributed-profit-modal/reinvest-distributed-profit-modal.component';
+import { WithdrawDistributedProfitModalComponent } from '../withdraw-distributed-profit-modal/withdraw-distributed-profit-modal.component';
 
 const DEFAULT_PAGE_SIZE = 10;
 const VOUCHER_PREFIX_LEN = 18;
@@ -50,6 +57,7 @@ const VOUCHER_PREFIX_LEN = 18;
     DateArPipe,
     HasPermissionDirective,
     ReinvestDistributedProfitModalComponent,
+    WithdrawDistributedProfitModalComponent,
   ],
   templateUrl: './shareholder-statement-modal.component.html',
   styleUrl: './shareholder-statement-modal.component.scss',
@@ -61,9 +69,16 @@ export class ShareholderStatementModalComponent {
 
   private readonly service = inject(ShareholdersService);
   private readonly toast = inject(ToastService);
+  private readonly dialog = inject(DialogService);
+  private readonly auth = inject(AuthService);
 
   /** Exposed so the template can gate write actions with `*appHasPermission`. */
   protected readonly PERMS = PERMISSIONS;
+
+  /** Gates the ledger's actions column (header + cells must agree, so not via the directive). */
+  protected readonly canManage = computed(() =>
+    this.auth.hasPermission(PERMISSIONS.shareholdersFullAccess),
+  );
 
   protected readonly statement = signal<ShareholderStatement | null>(null);
   protected readonly loading = signal(false);
@@ -73,8 +88,12 @@ export class ShareholderStatementModalComponent {
   protected readonly fromDate = signal('');
   protected readonly toDate = signal('');
 
-  // ── reinvest distributed profit (child modal) ──
+  // ── distributed profit actions (child modals) ──
   protected readonly reinvestOpen = signal(false);
+  protected readonly withdrawOpen = signal(false);
+
+  /** Ledger row currently being deleted, for inline button state. */
+  protected readonly deletingId = signal<number | null>(null);
 
   // ── pagination ──
   protected readonly pageIndex = signal(1);
@@ -107,13 +126,18 @@ export class ShareholderStatementModalComponent {
     () => this.statement()?.distributedProfitBalance ?? 0,
   );
 
-  protected readonly canReinvest = computed(
+  /** Both reinvest and cash withdrawal draw from the same available balance. */
+  protected readonly hasDistributedBalance = computed(
     () => !this.loading() && this.distributedProfitBalance() > 0,
+  );
+
+  private readonly childOpen = computed(
+    () => this.reinvestOpen() || this.withdrawOpen(),
   );
 
   /** Parent modal must ignore Esc/backdrop while busy or while a child modal is on top. */
   protected readonly dismissible = computed(
-    () => !this.loading() && !this.reinvestOpen(),
+    () => !this.loading() && !this.childOpen(),
   );
 
   protected readonly entries = computed(
@@ -134,6 +158,7 @@ export class ShareholderStatementModalComponent {
         if (sh.id === this.lastShId) return;
         this.lastShId = sh.id;
         this.reinvestOpen.set(false);
+        this.withdrawOpen.set(false);
         this.statement.set(null);
         this.error.set(null);
         this.fromDate.set('');
@@ -146,14 +171,14 @@ export class ShareholderStatementModalComponent {
   }
 
   protected close(): void {
-    if (this.reinvestOpen()) return;
+    if (this.childOpen()) return;
     this.closed.emit();
   }
 
   // ─────────── reinvest distributed profit ───────────
 
   protected openReinvest(): void {
-    if (!this.canReinvest()) return;
+    if (!this.hasDistributedBalance()) return;
     this.reinvestOpen.set(true);
   }
 
@@ -168,6 +193,63 @@ export class ShareholderStatementModalComponent {
   protected onReinvested(): void {
     this.reinvestOpen.set(false);
     this.refresh();
+  }
+
+  // ─────────── withdraw distributed profit (cash) ───────────
+
+  protected openWithdraw(): void {
+    if (!this.hasDistributedBalance()) return;
+    this.withdrawOpen.set(true);
+  }
+
+  protected closeWithdraw(): void {
+    this.withdrawOpen.set(false);
+  }
+
+  /** The distributed-profit card and the ledger change; capital does not. */
+  protected onWithdrawn(): void {
+    this.withdrawOpen.set(false);
+    this.refresh();
+  }
+
+  // ─────────── cancel a reinvestment / withdrawal ───────────
+
+  protected canDelete(e: StatementEntry): boolean {
+    return canDeleteStatementEntry(e.transactionType);
+  }
+
+  protected async confirmDeleteEntry(e: StatementEntry): Promise<void> {
+    const sh = this.shareholder();
+    if (!sh || this.deletingId() != null) return;
+
+    const isWithdrawal = e.transactionType === 'DistributedProfitWithdrawal';
+    const ok = await this.dialog.confirm({
+      title: 'إلغاء العملية',
+      message: isWithdrawal
+        ? `هل أنت متأكد من إلغاء ${this.txLabel(e.transactionType)} بمبلغ ${e.amount}؟ سيعود المبلغ إلى الخزينة وإلى رصيد الأرباح الموزعة المتاح.`
+        : `هل أنت متأكد من إلغاء ${this.txLabel(e.transactionType)} بمبلغ ${e.amount}؟ سيُخصم المبلغ من رأس المال ويعود إلى رصيد الأرباح الموزعة المتاح.`,
+      confirmText: 'حذف',
+      cancelText: 'تراجع',
+      type: 'danger',
+    });
+    if (!ok) return;
+
+    this.deletingId.set(e.id);
+    this.service.deleteCapitalTransaction(sh.id, e.id).subscribe({
+      next: () => {
+        this.deletingId.set(null);
+        this.toast.success('تم إلغاء العملية بنجاح');
+        // Step back a page if we just emptied a non-first page; else reload in place.
+        if (this.entries().length === 1 && this.pageIndex() > 1) {
+          this.pageIndex.update((p) => p - 1);
+        }
+        this.refresh();
+      },
+      error: (err: ApiError) => {
+        this.deletingId.set(null);
+        this.toast.error(apiErrorToMessage(err, 'تعذّر إلغاء العملية'));
+      },
+    });
   }
 
   protected refresh(): void {
@@ -215,6 +297,10 @@ export class ShareholderStatementModalComponent {
 
   protected isInflow(type: StatementTransactionType): boolean {
     return isStatementInflow(type);
+  }
+
+  protected affectsCapital(type: StatementTransactionType): boolean {
+    return affectsCapital(type);
   }
 
   protected shortVoucher(value: string | undefined): string {

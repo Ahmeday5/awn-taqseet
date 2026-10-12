@@ -58,10 +58,16 @@ export const API_ENDPOINTS = {
     /** POST: book part of a shareholder's already-distributed profit back into their capital (ledger-only, no treasury movement). */
     reinvestDistributedProfit: (id: number) =>
       `dashboard/shareholders/${id}/reinvest-distributed-profit`,
+    /** POST: pay part of a shareholder's distributed profit out in cash from a treasury (capital unchanged). */
+    withdrawDistributedProfit: (id: number) =>
+      `dashboard/shareholders/${id}/withdraw-distributed-profit`,
+    /** POST: book every shareholder's full distributed-profit balance into their capital in one shot. */
+    reinvestAllDistributedProfits:
+      'dashboard/shareholders/reinvest-all-distributed-profits',
     /** POST a deposit/withdrawal · GET (paged) the capital-movement ledger. */
     capitalTransactions: (id: number) =>
       `dashboard/shareholders/${id}/capital-transactions`,
-    /** PUT edit (deposit/withdrawal only) / DELETE (deposit/withdrawal/distributed-profit reinvestment) a single capital movement. */
+    /** PUT edit (deposit/withdrawal only) / DELETE (deposit/withdrawal/distributed-profit reinvestment or withdrawal) a single capital movement. */
     capitalTransactionById: (shareholderId: number, txId: number) =>
       `dashboard/shareholders/${shareholderId}/capital-transactions/${txId}`,
     /** POST: roll every shareholder's accrued profit into their capital in one shot. */

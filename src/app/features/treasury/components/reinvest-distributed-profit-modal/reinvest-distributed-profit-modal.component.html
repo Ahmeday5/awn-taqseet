@@ -21,13 +21,16 @@
   <form [formGroup]="form" (ngSubmit)="submit()" novalidate autocomplete="off">
     <div class="row g-3">
       <div class="col-12 col-md-6">
-        <label class="form-label d-flex justify-content-between align-items-center" for="rdp-amount">
+        <label class="form-label d-flex justify-content-between align-items-center gap-2" for="rdp-amount">
           <span>المبلغ</span>
-          @if (hasBalance()) {
-            <button type="button" class="rdp-link" [disabled]="submitting()" (click)="useFullBalance()">
-              كامل المتاح
-            </button>
-          }
+          <span class="rdp-avail">
+            المتاح: {{ maxAmount() | currencyAr: true }}
+            @if (hasBalance()) {
+              <button type="button" class="rdp-link" [disabled]="submitting()" (click)="useFullBalance()">
+                الكل
+              </button>
+            }
+          </span>
         </label>
         <input
           id="rdp-amount"

@@ -19,6 +19,7 @@ import { ProfitDistributionModalComponent } from '../../components/profit-distri
 import { ProfitSettlementDetailsModalComponent } from '../../components/profit-settlement-details-modal/profit-settlement-details-modal.component';
 import { ShareholderCapitalModalComponent } from '../../components/shareholder-capital-modal/shareholder-capital-modal.component';
 import { CapitalizeAllProfitsModalComponent } from '../../components/capitalize-all-profits-modal/capitalize-all-profits-modal.component';
+import { ReinvestAllDistributedProfitsModalComponent } from '../../components/reinvest-all-distributed-profits-modal/reinvest-all-distributed-profits-modal.component';
 import { ShareholderStatementModalComponent } from '../../components/shareholder-statement-modal/shareholder-statement-modal.component';
 import { CompanyProfitStatementModalComponent } from '../../components/company-profit-statement-modal/company-profit-statement-modal.component';
 
@@ -50,6 +51,7 @@ const REFETCH_DEBOUNCE_MS = 300;
     ProfitSettlementDetailsModalComponent,
     ShareholderCapitalModalComponent,
     CapitalizeAllProfitsModalComponent,
+    ReinvestAllDistributedProfitsModalComponent,
     ShareholderStatementModalComponent,
     CompanyProfitStatementModalComponent,
     PaginationComponent,
@@ -135,6 +137,9 @@ export class ShareholdersComponent {
 
   // ── capitalize-all-profits modal ──
   protected readonly capitalizeAllOpen = signal(false);
+
+  // ── reinvest-all-distributed-profits modal ──
+  protected readonly reinvestAllOpen = signal(false);
 
   // ── statement modal ──
   protected readonly statementOpen = signal(false);
@@ -509,6 +514,20 @@ export class ShareholdersComponent {
 
   protected onCapitalizedAll(): void {
     this.capitalizeAllOpen.set(false);
+  }
+
+  // ─────────── reinvest-all-distributed-profits modal ───────────
+
+  protected openReinvestAll(): void {
+    this.reinvestAllOpen.set(true);
+  }
+
+  /**
+   * No success handler needed: the modal stays open on its summary, and the
+   * service's cache invalidation already triggers refreshAll().
+   */
+  protected closeReinvestAll(): void {
+    this.reinvestAllOpen.set(false);
   }
 
   // ─────────── statement modal ───────────

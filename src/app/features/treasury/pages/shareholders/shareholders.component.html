@@ -10,6 +10,9 @@
     <button *appHasPermission="PERMS.treasuryFullAccess" class="btn btn-sm btn-te" [disabled]="!hasPendingProfits()"
       (click)="openCapitalizeAll()" title="ترحيل أرباح جميع المساهمين إلى رأس مالهم دفعةً واحدة">رسملة الأرباح
       الكلية</button>
+    <button *appHasPermission="PERMS.shareholdersFullAccess" class="btn btn-sm btn-gr"
+      (click)="openReinvestAll()" title="إضافة كامل رصيد الأرباح الموزعة لكل مساهم إلى رأس ماله">إضافة الأرباح
+      الموزعة لرأس مال الكل</button>
     <!--<button
       *appHasPermission="PERMS.treasuryFullAccess"
       class="btn btn-sm btn-gr"
@@ -368,6 +371,9 @@
 <!-- ── CAPITALIZE ALL PROFITS MODAL ── -->
 <app-capitalize-all-profits-modal [open]="capitalizeAllOpen()" (closed)="closeCapitalizeAll()"
   (capitalized)="onCapitalizedAll()" />
+
+<!-- ── REINVEST ALL DISTRIBUTED PROFITS MODAL ── -->
+<app-reinvest-all-distributed-profits-modal [open]="reinvestAllOpen()" (closed)="closeReinvestAll()" />
 
 <!-- ── SHAREHOLDER STATEMENT MODAL ── -->
 <app-shareholder-statement-modal [open]="statementOpen()" [shareholder]="statementShareholder()"
