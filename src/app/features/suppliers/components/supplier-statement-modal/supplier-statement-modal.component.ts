@@ -23,7 +23,12 @@ import {
   SupplierStatementPayment,
   SupplierStatementQuery,
 } from '../../models/supplier.model';
-import { PrintService } from '../../../../core/services/print.service';
+import { PrintConfig, PrintService } from '../../../../core/services/print.service';
+import { WhatsappSendButtonComponent } from '../../../../shared/components/whatsapp-send-button/whatsapp-send-button.component';
+import { formatMoneyAr } from '../../../../shared/utils/number-format.util';
+import { PdfExportService } from '../../../../core/services/pdf-export.service';
+import { reportFromPrintConfig } from '../../../../core/pdf/pdf-report.template';
+import { formatPrintCurrency } from '../../../../core/utils/print-format.util';
 
 const STATUS_BADGE: Record<SupplierStatementInvoiceStatus, BadgeType> = {
   Draft: 'info',
@@ -52,6 +57,7 @@ const STATUS_LABEL: Record<SupplierStatementInvoiceStatus, string> = {
     ModalComponent,
     CurrencyArPipe,
     BadgeComponent,
+    WhatsappSendButtonComponent,
   ],
   templateUrl: './supplier-statement-modal.component.html',
   styleUrl: './supplier-statement-modal.component.scss',
@@ -69,6 +75,7 @@ export class SupplierStatementModalComponent {
   private readonly fb = inject(FormBuilder);
   private readonly service = inject(SuppliersService);
   private readonly printer = inject(PrintService);
+  private readonly pdf = inject(PdfExportService);
 
   // ── reactive state ──
   protected readonly statement = signal<SupplierStatement | null>(null);
@@ -207,9 +214,44 @@ export class SupplierStatementModalComponent {
    * (no extra fetch needed), so this is a synchronous render.
    */
   protected print(): void {
+    const config = this.buildPrintConfig();
+    if (config) this.printer.print(config);
+  }
+
+  // ─────────── whatsapp ───────────
+
+  protected readonly whatsappCaption = computed(() => {
     const s = this.statement();
     const supplier = this.supplier();
-    if (!s || !supplier) return;
+    if (!s || !supplier) return '';
+    return [
+      `كشف حساب المورد: ${supplier.fullName}`,
+      `إجمالي المشتريات: ${formatMoneyAr(s.summary.totalPurchases)}`,
+      `المدفوع: ${formatMoneyAr(s.summary.totalPaid)}`,
+      `المتبقي: ${formatMoneyAr(s.summary.totalRemaining)}`,
+    ].join('\n');
+  });
+
+  /** Same report as the printout, as a PDF file for WhatsApp. */
+  protected readonly buildStatementPdf = (): Promise<string> => {
+    const config = this.buildPrintConfig();
+    const s = this.statement();
+    if (!config || !s) return Promise.reject(new Error('Statement not loaded'));
+    return this.pdf.renderReport(reportFromPrintConfig(config, {
+      caption: `الفواتير (${s.summary.invoicesCount.toLocaleString('ar-EG')})`,
+      metrics: [
+        { label: 'إجمالي المشتريات', value: formatPrintCurrency(s.summary.totalPurchases), emphasis: true },
+        { label: 'المدفوع', value: formatPrintCurrency(s.summary.totalPaid), tone: 'positive' },
+        { label: 'المتبقي', value: formatPrintCurrency(s.summary.totalRemaining), tone: s.summary.totalRemaining > 0 ? 'negative' : 'positive' },
+        { label: 'عدد الفواتير', value: s.summary.invoicesCount.toLocaleString('ar-EG') },
+      ],
+    }));
+  };
+
+  private buildPrintConfig(): PrintConfig<SupplierStatementInvoice> | null {
+    const s = this.statement();
+    const supplier = this.supplier();
+    if (!s || !supplier) return null;
 
     const meta: Array<{ label: string; value: string }> = [
       { label: 'المورد', value: supplier.fullName },
@@ -224,7 +266,7 @@ export class SupplierStatementModalComponent {
       });
     }
 
-    this.printer.print<SupplierStatementInvoice>({
+    return {
       title: 'كشف حساب المورد',
       subtitle: supplier.fullName,
       meta,
@@ -256,7 +298,7 @@ export class SupplierStatementModalComponent {
         ],
       },
       rows: s.invoices,
-    });
+    };
   }
 
   // ─────────── internals ───────────

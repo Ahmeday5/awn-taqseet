@@ -185,16 +185,28 @@
           <button type="button"
             class="btn btn-bl iv-btn-grow-2 d-inline-flex align-items-center justify-content-center gap-2"
             [disabled]="savingDraft() || savingFinal()" (click)="saveAndConfirm()">
-            @if (savingFinal()) {
+            @if (savingFinal() && !sendingWhatsapp()) {
             <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
             }
             <span>{{
-              savingFinal()
+              savingFinal() && !sendingWhatsapp()
                 ? 'جاري الحفظ...'
                 : isEdit()
                   ? 'حفظ التعديلات'
                   : 'حفظ وطباعة الفاتورة'
             }}</span>
+          </button>
+
+          <button type="button"
+            class="btn btn-wa iv-btn-grow-2 d-inline-flex align-items-center justify-content-center gap-2"
+            [disabled]="savingDraft() || savingFinal()" (click)="saveAndSendWhatsapp()"
+            title="حفظ الفاتورة وإرسالها للمورد على واتساب">
+            @if (savingFinal() && sendingWhatsapp()) {
+            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            } @else {
+            <i class="fa-brands fa-whatsapp" aria-hidden="true"></i>
+            }
+            <span>{{ savingFinal() && sendingWhatsapp() ? 'جاري الحفظ...' : 'حفظ وإرسال واتساب' }}</span>
           </button>
 
           <button type="button" class="btn iv-btn-grow-1 d-inline-flex align-items-center justify-content-center gap-2"

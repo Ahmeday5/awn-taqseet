@@ -362,6 +362,18 @@
         @else { حفظ العقد }
       </span>
     </button>
+    @if (!isEditMode()) {
+      <button
+        type="button"
+        class="btn btn-wa d-inline-flex align-items-center gap-2"
+        [disabled]="submitting() || loadingLookups() || loadingDetails() || form.invalid"
+        (click)="saveAndSendWhatsapp()"
+        title="حفظ العقد وإرساله للعميل على واتساب"
+      >
+        <i class="fa-brands fa-whatsapp" aria-hidden="true"></i>
+        <span>حفظ وإرسال واتساب</span>
+      </button>
+    }
   </ng-container>
 </app-modal>
 
@@ -369,6 +381,7 @@
   <app-contract-print-modal
     [contractId]="printContractId()!"
     [onClose]="closePrintModal.bind(this)"
+    [autoSendWhatsapp]="sendWhatsappAfterSave()"
   />
 }
 

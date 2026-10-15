@@ -1,3 +1,7 @@
+// Confirmations can be raised from inside other overlays (e.g. the contract
+// print overlay at 1060), so they must sit above every modal layer.
+:host ::ng-deep .app-modal-backdrop { z-index: 1070; }
+
 .cd-message {
   font-size: 13px;
   color: var(--txt2);

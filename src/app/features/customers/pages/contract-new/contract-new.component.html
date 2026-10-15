@@ -293,6 +293,18 @@
             @if (isSaving()) { <span class="spinner-border spinner-border-sm me-1"></span> }
             {{ isSaving() ? 'جاري الحفظ...' : isEditMode() ? 'حفظ التعديلات' : 'حفظ العقد' }}
           </button>
+          @if (!isEditMode()) {
+            <button
+              type="button"
+              class="btn btn-wa flex-fill d-inline-flex align-items-center justify-content-center gap-1"
+              [disabled]="isSaving() || form.invalid"
+              (click)="saveAndSendWhatsapp()"
+              title="حفظ العقد وإرساله للعميل على واتساب"
+            >
+              <i class="fa-brands fa-whatsapp" aria-hidden="true"></i>
+              <span>حفظ وإرسال واتساب</span>
+            </button>
+          }
           <button type="button" class="btn" (click)="reset()">مسح</button>
         </div>
 
@@ -308,5 +320,6 @@
   <app-contract-print-modal
     [contractId]="printContractId()!"
     [onClose]="closePrintModal.bind(this)"
+    [autoSendWhatsapp]="sendWhatsappAfterSave()"
   />
 }

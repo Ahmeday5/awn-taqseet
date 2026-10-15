@@ -1,49 +1,20 @@
 import { Injectable, inject } from '@angular/core';
 import { AuthService } from './auth.service';
 import { environment } from '../../../environments/environment';
+import {
+  PrintColumn,
+  PrintTotals,
+  escapeHtml as esc,
+  formatPrintCell,
+  formatPrintDateTime,
+} from '../utils/print-format.util';
 
-/**
- * Describes one column in a printable table.
- * `key` can either pick a property off the row or compute a value from the row.
- */
-export interface PrintColumn<T> {
-  readonly key: keyof T | ((row: T) => unknown);
-  readonly header: string;
-  readonly align?: 'start' | 'center' | 'end';
-  /** CSS width hint (e.g. `'120px'`, `'12%'`). Otherwise auto. */
-  readonly width?: string;
-  /**
-   * Either a named formatter (consistent with the app's pipes) or a custom
-   * function. Custom functions receive the resolved value and the row.
-   */
-  readonly format?:
-    | 'currency'
-    | 'date'
-    | 'shortDate'
-    | 'percent'
-    | 'number'
-    | ((value: unknown, row: T) => string);
-  /** Visual emphasis — use sparingly (totals, identifiers). */
-  readonly bold?: boolean;
-}
+export type { PrintColumn, PrintTotals } from '../utils/print-format.util';
 
 /** A `label: value` pair shown in the report header (filters, date range, …). */
 export interface PrintMetaItem {
   readonly label: string;
   readonly value: string;
-}
-
-/** Optional totals row appended below the table body. */
-export interface PrintTotals {
-  /** Label cell text (defaults to "الإجمالي"). */
-  readonly label?: string;
-  /** Spans applied to the label cell (defaults to 1). */
-  readonly labelColSpan?: number;
-  /**
-   * Cells after the label. Each entry's index maps 1-to-1 against the columns
-   * starting at `labelColSpan`. Use `null` for an empty cell.
-   */
-  readonly cells: ReadonlyArray<string | null>;
 }
 
 export interface PrintConfig<T> {
@@ -73,10 +44,6 @@ export interface PrintConfig<T> {
 @Injectable({ providedIn: 'root' })
 export class PrintService {
   private readonly auth = inject(AuthService);
-  private readonly months = [
-    'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
-    'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر',
-  ];
 
   /**
    * Builds the report document, opens a hidden iframe, prints it, then
@@ -181,7 +148,7 @@ export class PrintService {
     } = config;
 
     const user = this.auth.currentUser();
-    const generatedAt = this.formatDateTime(new Date());
+    const generatedAt = formatPrintDateTime(new Date());
 
     const headerBlock = `
       <header class="rpt-header">
@@ -269,8 +236,7 @@ export class PrintService {
               <tr>
                 ${columns
                   .map((c) => {
-                    const raw = this.resolveValue(c, row);
-                    const text = this.formatValue(c, raw, row);
+                    const text = formatPrintCell(c, row);
                     return `<td class="ta-${c.align ?? 'start'}${c.bold ? ' td-bold' : ''}">${esc(text)}</td>`;
                   })
                   .join('')}
@@ -299,64 +265,6 @@ export class PrintService {
           ${allCells}
         </tr>
       </tfoot>`;
-  }
-
-  // ─────────────────────── private: formatters ───────────────────────
-
-  private resolveValue<T>(col: PrintColumn<T>, row: T): unknown {
-    return typeof col.key === 'function'
-      ? col.key(row)
-      : (row as Record<string, unknown>)[col.key as string];
-  }
-
-  private formatValue<T>(col: PrintColumn<T>, raw: unknown, row: T): string {
-    if (typeof col.format === 'function') return col.format(raw, row);
-    if (raw === null || raw === undefined || raw === '') return '—';
-
-    switch (col.format) {
-      case 'currency':  return this.formatCurrency(raw);
-      case 'date':      return this.formatDate(raw, 'long');
-      case 'shortDate': return this.formatDate(raw, 'short');
-      case 'percent':   return this.formatPercent(raw);
-      case 'number':    return this.formatNumber(raw);
-      default:          return String(raw);
-    }
-  }
-
-  private formatCurrency(raw: unknown): string {
-    const n = Number(raw);
-    if (!Number.isFinite(n)) return '—';
-    return `${Math.round(n).toLocaleString('ar-EG')} ${environment.currency}`;
-  }
-
-  private formatNumber(raw: unknown): string {
-    const n = Number(raw);
-    if (!Number.isFinite(n)) return '—';
-    return n.toLocaleString('ar-EG');
-  }
-
-  private formatPercent(raw: unknown): string {
-    const n = Number(raw);
-    if (!Number.isFinite(n)) return '—';
-    return `${n}%`;
-  }
-
-  private formatDate(raw: unknown, kind: 'short' | 'long'): string {
-    const date = raw instanceof Date ? raw : new Date(String(raw));
-    if (isNaN(date.getTime())) return '—';
-    const d = date.getDate();
-    const m = this.months[date.getMonth()];
-    const y = date.getFullYear();
-    return kind === 'short'
-      ? `${d}/${date.getMonth() + 1}/${y}`
-      : `${d} ${m} ${y}`;
-  }
-
-  private formatDateTime(date: Date): string {
-    const d = this.formatDate(date, 'short');
-    const hh = String(date.getHours()).padStart(2, '0');
-    const mm = String(date.getMinutes()).padStart(2, '0');
-    return `${d} — ${hh}:${mm}`;
   }
 
   // ─────────────────────── private: print stylesheet ───────────────────────
@@ -505,18 +413,4 @@ export class PrintService {
       }
     `;
   }
-}
-
-/**
- * Minimal HTML escaper. We control the markup template; only dynamic values
- * pass through here. Covers the five characters that change parser state.
- */
-function esc(value: unknown): string {
-  if (value === null || value === undefined) return '';
-  return String(value)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
 }

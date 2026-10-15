@@ -17,6 +17,15 @@
             </svg>
             طباعة الأقساط ({{ details()!.installments.length }} ورقة)
           </button>
+          <app-whatsapp-send-button
+            documentType="Contract"
+            [documentId]="details()!.contract.id"
+            [recipientName]="details()!.client.fullName"
+            [fileName]="'عقد-' + details()!.contract.id"
+            [caption]="whatsappCaption()"
+            [pdf]="buildContractPdf"
+            [autoSend]="autoSendWhatsapp"
+          />
         }
         <button class="btn-close-cpm" (click)="onClose()">✕</button>
       </div>

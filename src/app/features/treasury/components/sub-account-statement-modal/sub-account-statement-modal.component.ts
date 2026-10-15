@@ -9,6 +9,7 @@ import {
   signal,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { Observable, firstValueFrom } from 'rxjs';
 import { map } from 'rxjs/operators';
 
 import { ModalComponent } from '../../../../shared/components/modal/modal.component';
@@ -18,7 +19,12 @@ import { CurrencyArPipe } from '../../../../shared/pipes/currency-ar.pipe';
 import { DateArPipe } from '../../../../shared/pipes/date-ar.pipe';
 import { ApiError } from '../../../../core/models/api-response.model';
 import { DialogService } from '../../../../core/services/dialog.service';
-import { PrintService } from '../../../../core/services/print.service';
+import { PrintConfig, PrintService } from '../../../../core/services/print.service';
+import { WhatsappSendButtonComponent } from '../../../../shared/components/whatsapp-send-button/whatsapp-send-button.component';
+import { formatMoneyAr } from '../../../../shared/utils/number-format.util';
+import { PdfExportService } from '../../../../core/services/pdf-export.service';
+import { reportFromPrintConfig } from '../../../../core/pdf/pdf-report.template';
+import { formatPrintCurrency } from '../../../../core/utils/print-format.util';
 import { ToastService } from '../../../../core/services/toast.service';
 import { fetchAllPages } from '../../../../core/utils/api-list.util';
 
@@ -56,6 +62,7 @@ const DEFAULT_PAGE_SIZE = 10;
     BadgeComponent,
     CurrencyArPipe,
     DateArPipe,
+    WhatsappSendButtonComponent,
   ],
   templateUrl: './sub-account-statement-modal.component.html',
   styleUrl: './sub-account-statement-modal.component.scss',
@@ -72,6 +79,7 @@ export class SubAccountStatementModalComponent {
   private readonly service = inject(SubAccountsService);
   private readonly treasuryService = inject(TreasuryService);
   private readonly printer = inject(PrintService);
+  private readonly pdf = inject(PdfExportService);
   private readonly toast = inject(ToastService);
   private readonly dialog = inject(DialogService);
 
@@ -205,13 +213,54 @@ export class SubAccountStatementModalComponent {
     if (!account || this.isPrinting()) return;
     this.isPrinting.set(true);
 
-    fetchAllPages<SubAccountVoucher>((pageIndex, pageSize) =>
+    this.loadPrintConfig(account).subscribe({
+      next: (config) => {
+        this.isPrinting.set(false);
+        this.printer.print(config);
+      },
+      error: () => {
+        this.isPrinting.set(false);
+        this.toast.error('تعذر تجهيز ملف الطباعة');
+      },
+    });
+  }
+
+  // ─────────── whatsapp ───────────
+
+  protected readonly whatsappCaption = computed(() => {
+    const a = this.header();
+    if (!a) return '';
+    return [
+      `كشف حساب: ${a.name}`,
+      `الرصيد الحالي: ${formatMoneyAr(a.balance)}`,
+    ].join('\n');
+  });
+
+  /** Same ledger as the printout (every page), as a PDF file for WhatsApp. */
+  protected readonly buildStatementPdf = async (): Promise<string> => {
+    const account = this.header();
+    if (!account) throw new Error('No sub-account selected');
+    const config = await firstValueFrom(this.loadPrintConfig(account));
+    const sumOf = (type: VoucherType) =>
+      config.rows.filter((r) => r.type === type).reduce((s, r) => s + (r.amount ?? 0), 0);
+    return this.pdf.renderReport(reportFromPrintConfig(config, {
+      caption: `السندات (${config.rows.length.toLocaleString('ar-EG')})`,
+      metrics: [
+        { label: 'الرصيد الحالي', value: formatPrintCurrency(account.balance), emphasis: true },
+        { label: 'إجمالي القبض', value: formatPrintCurrency(sumOf(VoucherType.Receipt)), tone: 'positive' },
+        { label: 'إجمالي الصرف', value: formatPrintCurrency(sumOf(VoucherType.Payment)), tone: 'negative' },
+        { label: 'عدد السندات', value: config.rows.length.toLocaleString('ar-EG') },
+      ],
+    }));
+  };
+
+  private loadPrintConfig(account: SubAccount): Observable<PrintConfig<SubAccountVoucher>> {
+    return fetchAllPages<SubAccountVoucher>((pageIndex, pageSize) =>
       this.service
         .refreshStatement(account.id, { pageIndex, pageSize })
         .pipe(map((s) => s.vouchers)),
-    ).subscribe({
-      next: (rows) => {
-        this.isPrinting.set(false);
+    ).pipe(
+      map((rows): PrintConfig<SubAccountVoucher> => {
         const receipts = rows
           .filter((r) => r.type === VoucherType.Receipt)
           .reduce((s, r) => s + (r.amount ?? 0), 0);
@@ -219,7 +268,7 @@ export class SubAccountStatementModalComponent {
           .filter((r) => r.type === VoucherType.Payment)
           .reduce((s, r) => s + (r.amount ?? 0), 0);
 
-        this.printer.print<SubAccountVoucher>({
+        return {
           title: 'كشف حساب فرعي',
           subtitle: account.name,
           meta: [
@@ -251,13 +300,9 @@ export class SubAccountStatementModalComponent {
             ],
           },
           rows,
-        });
-      },
-      error: () => {
-        this.isPrinting.set(false);
-        this.toast.error('تعذر تجهيز ملف الطباعة');
-      },
-    });
+        };
+      }),
+    );
   }
 
   // ─────────── edit-voucher handlers ───────────

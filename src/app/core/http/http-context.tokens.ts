@@ -37,6 +37,13 @@ export const CACHE_INVALIDATE = new HttpContextToken<readonly string[]>(() => []
 /** Force-bypass the cache for this GET (useful for explicit refresh buttons). */
 export const CACHE_BYPASS = new HttpContextToken<boolean>(() => false);
 
+/**
+ * Per-request override for `timeoutInterceptor` (ms). Only raise it for calls
+ * that are slow by design (e.g. WhatsApp sends, which wait on the provider's
+ * anti-ban delay before responding).
+ */
+export const REQUEST_TIMEOUT = new HttpContextToken<number>(() => 30_000);
+
 export function withSkipLoader(ctx: HttpContext = new HttpContext()): HttpContext {
   return ctx.set(SKIP_LOADER, true);
 }
@@ -80,6 +87,11 @@ export function withCacheInvalidate(
   ctx: HttpContext = new HttpContext(),
 ): HttpContext {
   return ctx.set(CACHE_INVALIDATE, patterns);
+}
+
+/** Allow this request to hang for up to `ms` before timing out. */
+export function withTimeout(ms: number, ctx: HttpContext = new HttpContext()): HttpContext {
+  return ctx.set(REQUEST_TIMEOUT, ms);
 }
 
 /** Skip the cache lookup for this GET (e.g. user-driven refresh). */

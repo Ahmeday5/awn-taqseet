@@ -9,7 +9,7 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
-import { of } from 'rxjs';
+import { Observable, firstValueFrom, of } from 'rxjs';
 import { map, switchMap } from 'rxjs/operators';
 
 import { CustomersService } from '../../services/customers.service';
@@ -54,7 +54,12 @@ import { apiErrorToMessage } from '../../../../core/utils/api-error.util';
 import { HttpCacheService } from '../../../../core/services/http-cache.service';
 import { onInvalidate } from '../../../../core/utils/auto-refresh.util';
 import { todayIsoDate } from '../../../../shared/utils/date-iso.util';
-import { PrintService } from '../../../../core/services/print.service';
+import { PrintConfig, PrintService } from '../../../../core/services/print.service';
+import { WhatsappSendButtonComponent } from '../../../../shared/components/whatsapp-send-button/whatsapp-send-button.component';
+import { formatMoneyAr } from '../../../../shared/utils/number-format.util';
+import { PdfExportService } from '../../../../core/services/pdf-export.service';
+import { reportFromPrintConfig } from '../../../../core/pdf/pdf-report.template';
+import { formatPrintCurrency } from '../../../../core/utils/print-format.util';
 import { fetchAllPages } from '../../../../core/utils/api-list.util';
 import { translatePaymentNote } from '../../../../core/utils/payment-note.util';
 import { DirectContractModalComponent } from '../../components/direct-contract-modal/direct-contract-modal.component';
@@ -85,6 +90,7 @@ interface PaymentForm {
     CurrencyArPipe,
     SearchableSelectComponent,
     DirectContractModalComponent,
+    WhatsappSendButtonComponent,
   ],
   templateUrl: './statement.component.html',
   styleUrl: './statement.component.scss',
@@ -106,6 +112,7 @@ export class StatementComponent {
   private readonly toast = inject(ToastService);
   private readonly cache = inject(HttpCacheService);
   private readonly printer = inject(PrintService);
+  private readonly pdf = inject(PdfExportService);
   private readonly router = inject(Router);
 
   protected readonly isPrinting = signal(false);
@@ -365,8 +372,54 @@ export class StatementComponent {
     if (!client || this.isPrinting()) return;
     this.isPrinting.set(true);
 
+    this.loadStatementPrintConfig(client).subscribe({
+      next: (config) => {
+        this.isPrinting.set(false);
+        this.printer.print(config);
+      },
+      error: () => {
+        this.isPrinting.set(false);
+        this.toast.error('تعذر تجهيز ملف الطباعة');
+      },
+    });
+  }
+
+  // ─────────── whatsapp ───────────
+
+  protected readonly whatsappCaption = computed(() => {
+    const client = this.selectedClient();
+    if (!client) return '';
+    const s = this.contractsSummary();
+    return [
+      `كشف حساب العميل: ${client.fullName}`,
+      `إجمالي العقود: ${formatMoneyAr(s.totalContractsValue)}`,
+      `المتبقي: ${formatMoneyAr(s.totalRemaining)}`,
+      ...(s.totalOverdue > 0 ? [`المتأخر: ${formatMoneyAr(s.totalOverdue)}`] : []),
+    ].join('\n');
+  });
+
+  /** Same report as the printout (every page, not just the visible one), as a PDF. */
+  protected readonly buildStatementPdf = async (): Promise<string> => {
+    const client = this.selectedClient();
+    if (!client) throw new Error('No client selected');
+    const config = await firstValueFrom(this.loadStatementPrintConfig(client));
+    const s = this.contractsSummary();
+    return this.pdf.renderReport(reportFromPrintConfig(config, {
+      caption: `العقود (${config.rows.length.toLocaleString('ar-EG')})`,
+      metrics: [
+        { label: 'إجمالي العقود', value: formatPrintCurrency(s.totalContractsValue), emphasis: true },
+        { label: 'المتبقي', value: formatPrintCurrency(s.totalRemaining), tone: s.totalRemaining > 0 ? 'negative' : 'positive' },
+        { label: 'المتأخر', value: formatPrintCurrency(s.totalOverdue), tone: s.totalOverdue > 0 ? 'warning' : 'default' },
+        { label: 'عدد العقود', value: config.rows.length.toLocaleString('ar-EG') },
+      ],
+    }));
+  };
+
+  private loadStatementPrintConfig(
+    client: DashboardClient,
+  ): Observable<PrintConfig<ClientContractRow>> {
     const representativeName = this.representativeSearch();
-    fetchAllPages<ClientContractRow>((pageIndex, pageSize) =>
+    return fetchAllPages<ClientContractRow>((pageIndex, pageSize) =>
       this.customersService
         .refreshClientContracts(client.id, {
           pageIndex,
@@ -374,9 +427,8 @@ export class StatementComponent {
           representativeName,
         })
         .pipe(map((res) => res.items)),
-    ).subscribe({
-      next: (rows) => {
-        this.isPrinting.set(false);
+    ).pipe(
+      map((rows): PrintConfig<ClientContractRow> => {
         const totalSale = rows.reduce(
           (s, r) => s + (r.totalContractAmount ?? 0),
           0,
@@ -387,7 +439,7 @@ export class StatementComponent {
           0,
         );
 
-        this.printer.print<ClientContractRow>({
+        return {
           title: 'كشف حساب العميل',
           subtitle: client.fullName,
           meta: [
@@ -487,13 +539,9 @@ export class StatementComponent {
             ],
           },
           rows,
-        });
-      },
-      error: () => {
-        this.isPrinting.set(false);
-        this.toast.error('تعذر تجهيز ملف الطباعة');
-      },
-    });
+        };
+      }),
+    );
   }
 
   // ─────────── pagination ───────────

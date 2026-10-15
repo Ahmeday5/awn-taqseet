@@ -49,6 +49,18 @@
         [disabled]="!hasStatement() || loading()"
         (click)="print()"
       >طباعة</button>
+      @if (supplier(); as sup) {
+        <app-whatsapp-send-button
+          documentType="SupplierStatement"
+          [documentId]="sup.id"
+          [recipientName]="sup.fullName"
+          [phone]="sup.phoneNumber"
+          [fileName]="'كشف-حساب-' + sup.fullName"
+          [caption]="whatsappCaption()"
+          [pdf]="buildStatementPdf"
+          [disabled]="!hasStatement() || loading()"
+        />
+      }
     </div>
   </form>
 

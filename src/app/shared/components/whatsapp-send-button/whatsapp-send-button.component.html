@@ -1,0 +1,17 @@
+<button
+  type="button"
+  class="btn btn-wa d-inline-flex align-items-center gap-1"
+  [class.btn-sm]="small()"
+  [disabled]="isDisabled()"
+  [title]="tooltip()"
+  [attr.aria-busy]="busy()"
+  (click)="send()"
+>
+  @if (busy()) {
+    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+    <span>{{ stageLabel() }}</span>
+  } @else {
+    <i class="fa-brands fa-whatsapp" aria-hidden="true"></i>
+    <span>{{ label() }}</span>
+  }
+</button>

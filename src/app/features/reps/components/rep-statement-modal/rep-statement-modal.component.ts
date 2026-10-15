@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   effect,
   inject,
   input,
@@ -15,8 +16,14 @@ import {
   RepStatementContractRow,
 } from '../../models/rep.model';
 import { CommonModule } from '@angular/common';
+import { Observable, firstValueFrom } from 'rxjs';
 import { map } from 'rxjs/operators';
-import { PrintService } from '../../../../core/services/print.service';
+import { PrintConfig, PrintService } from '../../../../core/services/print.service';
+import { WhatsappSendButtonComponent } from '../../../../shared/components/whatsapp-send-button/whatsapp-send-button.component';
+import { formatMoneyAr } from '../../../../shared/utils/number-format.util';
+import { PdfExportService } from '../../../../core/services/pdf-export.service';
+import { reportFromPrintConfig } from '../../../../core/pdf/pdf-report.template';
+import { formatPrintCurrency } from '../../../../core/utils/print-format.util';
 import { fetchAllPages } from '../../../../core/utils/api-list.util';
 import { REP_STATUS_LABELS } from '../../constants/rep-meta';
 
@@ -30,7 +37,7 @@ import { REP_STATUS_LABELS } from '../../constants/rep-meta';
   selector: 'app-rep-statement-modal',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ModalComponent, RepStatementViewComponent, CommonModule],
+  imports: [ModalComponent, RepStatementViewComponent, CommonModule, WhatsappSendButtonComponent],
   template: `
     <app-modal
       [open]="open()"
@@ -63,6 +70,19 @@ import { REP_STATUS_LABELS } from '../../constants/rep-meta';
           }
           <span>🖨 طباعة PDF</span>
         </button>
+        @if (statement(); as snap) {
+          <app-whatsapp-send-button
+            documentType="RepStatement"
+            [documentId]="snap.representative.id"
+            [recipientName]="snap.representative.fullName"
+            [phone]="snap.representative.phoneNumber"
+            [fileName]="'كشف-حساب-' + snap.representative.fullName"
+            [caption]="whatsappCaption()"
+            [pdf]="buildStatementPdf"
+            [small]="false"
+            [disabled]="loading()"
+          />
+        }
       </ng-container>
     </app-modal>
   `,
@@ -70,6 +90,7 @@ import { REP_STATUS_LABELS } from '../../constants/rep-meta';
 export class RepStatementModalComponent {
   private readonly service = inject(RepsService);
   private readonly printer = inject(PrintService);
+  private readonly pdf = inject(PdfExportService);
 
   readonly open = input.required<boolean>();
   readonly representativeId = input<number | null>(null);
@@ -146,19 +167,61 @@ export class RepStatementModalComponent {
     if (id == null || this.isPrinting()) return;
     this.isPrinting.set(true);
 
-    // The statement endpoint wraps the contract rows inside a PagedResponse
-    // field (`data.contracts`), so we adapt it to fetchAllPages' shape.
-    fetchAllPages<RepStatementContractRow>((pageIndex, pageSize) =>
-      this.service
-        .statement(id, { pageIndex, pageSize })
-        .pipe(map((res) => res.contracts)),
-    ).subscribe({
-      next: (rows) => this.dispatchPrint(rows),
+    this.loadPrintConfig(id).subscribe({
+      next: (config) => {
+        this.printer.print(config);
+        this.isPrinting.set(false);
+      },
       error: () => this.isPrinting.set(false),
     });
   }
 
-  private dispatchPrint(rows: RepStatementContractRow[]): void {
+  // ─────────── whatsapp ───────────
+
+  protected readonly whatsappCaption = computed(() => {
+    const snap = this.statement();
+    if (!snap) return '';
+    const sum = snap.summary;
+    return [
+      `كشف حساب المندوب: ${snap.representative.fullName}`,
+      `عدد العقود: ${sum.contractsCount}`,
+      `إجمالي المبيعات: ${formatMoneyAr(sum.totalSales)}`,
+      `إجمالي العمولة: ${formatMoneyAr(sum.totalCommission)}`,
+      `العمولة المستحقة: ${formatMoneyAr(sum.outstandingCommission)}`,
+    ].join('\n');
+  });
+
+  /** Same report as the printout (every page), as a PDF file for WhatsApp. */
+  protected readonly buildStatementPdf = async (): Promise<string> => {
+    const id = this.representativeId();
+    if (id == null) throw new Error('No representative selected');
+    const config = await firstValueFrom(this.loadPrintConfig(id));
+    const sum = this.statement()?.summary;
+    return this.pdf.renderReport(reportFromPrintConfig(config, {
+      caption: `العقود (${config.rows.length.toLocaleString('ar-EG')})`,
+      metrics: sum
+        ? [
+            { label: 'إجمالي المبيعات', value: formatPrintCurrency(sum.totalSales), emphasis: true },
+            { label: 'إجمالي الربح', value: formatPrintCurrency(sum.totalProfit), tone: 'positive' },
+            { label: 'إجمالي العمولة', value: formatPrintCurrency(sum.totalCommission), tone: 'accent' },
+            { label: 'العمولة المصروفة', value: formatPrintCurrency(sum.paidCommission) },
+            { label: 'العمولة المستحقة', value: formatPrintCurrency(sum.outstandingCommission), tone: sum.outstandingCommission > 0 ? 'negative' : 'positive' },
+          ]
+        : undefined,
+    }));
+  };
+
+  private loadPrintConfig(id: number): Observable<PrintConfig<RepStatementContractRow>> {
+    // The statement endpoint wraps the contract rows inside a PagedResponse
+    // field (`data.contracts`), so we adapt it to fetchAllPages' shape.
+    return fetchAllPages<RepStatementContractRow>((pageIndex, pageSize) =>
+      this.service
+        .statement(id, { pageIndex, pageSize })
+        .pipe(map((res) => res.contracts)),
+    ).pipe(map((rows) => this.buildPrintConfig(rows)));
+  }
+
+  private buildPrintConfig(rows: RepStatementContractRow[]): PrintConfig<RepStatementContractRow> {
     const snap = this.statement();
     const rep = snap?.representative;
     const sum = snap?.summary;
@@ -176,7 +239,7 @@ export class RepStatementModalComponent {
       });
     }
 
-    this.printer.print<RepStatementContractRow>({
+    return {
       title: 'كشف حساب المندوب',
       subtitle: rep ? rep.fullName : undefined,
       meta,
@@ -216,9 +279,7 @@ export class RepStatementModalComponent {
           }
         : undefined,
       rows,
-    });
-
-    this.isPrinting.set(false);
+    };
   }
 
   private fmtCurrency(value: number): string {

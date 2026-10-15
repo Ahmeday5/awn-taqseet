@@ -30,6 +30,7 @@ import {
   PurchaseInvoice,
   UpdatePurchaseInvoicePayload,
 } from '../../models/invoice.model';
+import { WHATSAPP_AUTO_SEND_PARAM } from '../../../../core/models/whatsapp.model';
 import { WarehouseService } from '../../../warehouse/services/warehouse.service';
 import { ProductsService } from '../../../products/services/products.service';
 import { SuppliersService } from '../../../suppliers/services/suppliers.service';
@@ -126,6 +127,8 @@ export class InvoiceNewComponent implements OnInit {
   // ── submit state ──
   protected readonly savingDraft = signal(false);
   protected readonly savingFinal = signal(false);
+  /** The final save in flight came from "حفظ وإرسال واتساب". */
+  protected readonly sendingWhatsapp = signal(false);
   protected readonly serverError = signal<string | null>(null);
 
   // ── inline "add new product" modal ──
@@ -481,7 +484,12 @@ export class InvoiceNewComponent implements OnInit {
     this.submit(false);
   }
 
-  private submit(asDraft: boolean): void {
+  /** Final save, then open the invoice and send it to the supplier on WhatsApp. */
+  protected saveAndSendWhatsapp(): void {
+    this.submit(false, true);
+  }
+
+  private submit(asDraft: boolean, sendWhatsapp = false): void {
     if (this.savingDraft() || this.savingFinal()) return;
     if (!this.canSubmit()) {
       this.form.markAllAsTouched();
@@ -513,6 +521,7 @@ export class InvoiceNewComponent implements OnInit {
     };
 
     this.serverError.set(null);
+    this.sendingWhatsapp.set(sendWhatsapp);
     if (asDraft) this.savingDraft.set(true);
     else this.savingFinal.set(true);
 
@@ -532,6 +541,13 @@ export class InvoiceNewComponent implements OnInit {
               ? `تم حفظ المسودة ${res.invoiceNumber}`
               : `تم إنشاء الفاتورة ${res.invoiceNumber}`,
         );
+        if (sendWhatsapp) {
+          // The details page renders the document and sends it on arrival.
+          this.router.navigate(['/invoices', editId ?? res.id], {
+            queryParams: { [WHATSAPP_AUTO_SEND_PARAM]: 1 },
+          });
+          return;
+        }
         this.router.navigate(
           editId ? ['/invoices', editId] : ['/invoices/list'],
         );
@@ -539,6 +555,7 @@ export class InvoiceNewComponent implements OnInit {
       error: (err: ApiError) => {
         this.savingDraft.set(false);
         this.savingFinal.set(false);
+        this.sendingWhatsapp.set(false);
         this.serverError.set(err.message || 'تعذّر حفظ الفاتورة');
       },
     });

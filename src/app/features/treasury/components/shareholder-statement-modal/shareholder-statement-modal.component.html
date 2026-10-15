@@ -245,6 +245,19 @@
 
   <ng-container modal-footer>
     <button type="button" class="btn" (click)="close()">إغلاق</button>
+    @if (shareholder(); as sh) {
+      <app-whatsapp-send-button
+        documentType="ShareholderStatement"
+        [documentId]="sh.id"
+        [recipientName]="sh.name"
+        [phone]="sh.phoneNumber"
+        [fileName]="'كشف-حساب-' + sh.name"
+        [caption]="whatsappCaption()"
+        [pdf]="buildStatementPdf"
+        [small]="false"
+        [disabled]="loading() || !statement()"
+      />
+    }
   </ng-container>
 </app-modal>
 

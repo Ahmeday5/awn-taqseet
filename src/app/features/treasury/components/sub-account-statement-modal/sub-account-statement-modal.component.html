@@ -54,6 +54,18 @@
         }
         <span>🖨 طباعة PDF</span>
       </button>
+      @if (header(); as a) {
+        <app-whatsapp-send-button
+          documentType="SubAccountStatement"
+          [documentId]="a.id"
+          [recipientName]="a.name"
+          [phone]="a.phoneNumber"
+          [fileName]="'كشف-حساب-' + a.name"
+          [caption]="whatsappCaption()"
+          [pdf]="buildStatementPdf"
+          [disabled]="vouchers().length === 0 || loading()"
+        />
+      }
     </div>
   </div>
 

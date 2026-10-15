@@ -13,6 +13,11 @@ import { ToastService } from '../../../../core/services/toast.service';
 import { DialogService } from '../../../../core/services/dialog.service';
 import { AuthService } from '../../../../core/services/auth.service';
 import { PERMISSIONS } from '../../../../core/constants/permissions.const';
+import { PdfExportService } from '../../../../core/services/pdf-export.service';
+import { WhatsappSendButtonComponent } from '../../../../shared/components/whatsapp-send-button/whatsapp-send-button.component';
+import { formatMoneyAr } from '../../../../shared/utils/number-format.util';
+import { WHATSAPP_AUTO_SEND_PARAM } from '../../../../core/models/whatsapp.model';
+import { buildPurchaseInvoiceReport } from '../../utils/purchase-invoice-pdf';
 import { InvoicesService } from '../../services/invoices.service';
 import {
   PURCHASE_INVOICE_STATUS_VIEW,
@@ -41,6 +46,7 @@ import { PayInvoiceModalComponent } from '../../components/pay-invoice-modal/pay
     CurrencyArPipe,
     ConfirmInvoiceModalComponent,
     PayInvoiceModalComponent,
+    WhatsappSendButtonComponent,
   ],
   templateUrl: './invoice-details.component.html',
   styleUrl: './invoice-details.component.scss',
@@ -52,6 +58,7 @@ export class InvoiceDetailsComponent implements OnInit {
   private readonly toast   = inject(ToastService);
   private readonly dialog  = inject(DialogService);
   private readonly auth    = inject(AuthService);
+  private readonly pdf     = inject(PdfExportService);
 
   // ── data ──
   protected readonly invoice    = signal<PurchaseInvoice | null>(null);
@@ -108,7 +115,23 @@ export class InvoiceDetailsComponent implements OnInit {
       this.notFound.set(true);
       return;
     }
+    this.consumeAutoSendRequest();
     this.fetch(id);
+  }
+
+  /**
+   * Arrived from "حفظ وإرسال واتساب": arm a one-shot send and drop the
+   * query param right away so a refresh or back-navigation can't resend.
+   */
+  private consumeAutoSendRequest(): void {
+    if (!this.route.snapshot.queryParamMap.has(WHATSAPP_AUTO_SEND_PARAM)) return;
+    this.autoSendWhatsapp.set(true);
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { [WHATSAPP_AUTO_SEND_PARAM]: null },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
   }
 
   // ─────────── data ───────────
@@ -200,6 +223,27 @@ export class InvoiceDetailsComponent implements OnInit {
     if (typeof window === 'undefined') return;
     window.print();
   }
+
+  // ─────────── whatsapp ───────────
+
+  protected readonly autoSendWhatsapp = signal(false);
+
+  protected readonly whatsappCaption = computed(() => {
+    const inv = this.invoice();
+    if (!inv) return '';
+    return [
+      `فاتورة مشتريات رقم ${inv.invoiceNumber}`,
+      `الإجمالي: ${formatMoneyAr(inv.totalAmount)}`,
+      `المدفوع: ${formatMoneyAr(inv.paidAmount)}`,
+      `المتبقي: ${formatMoneyAr(inv.remainingAmount)}`,
+    ].join('\n');
+  });
+
+  protected readonly buildInvoicePdf = (): Promise<string> => {
+    const inv = this.invoice();
+    if (!inv) return Promise.reject(new Error('Invoice not loaded'));
+    return this.pdf.renderReport(buildPurchaseInvoiceReport(inv));
+  };
 
   // ─────────── nav ───────────
 

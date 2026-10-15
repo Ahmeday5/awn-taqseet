@@ -109,6 +109,8 @@ export class CreateContractComponent implements OnInit {
   loading = signal(true);
   submitting = signal(false);
   printContractId = signal<number | null>(null);
+  /** The save in flight came from "حفظ وإرسال واتساب". */
+  sendWhatsappAfterSave = signal(false);
 
   form!: FormGroup;
 
@@ -320,7 +322,12 @@ export class CreateContractComponent implements OnInit {
     this.router.navigate(['/contracts']);
   }
 
-  onSubmit(): void {
+  /** Create the contract, then send it to the client on WhatsApp from the print view. */
+  saveAndSendWhatsapp(): void {
+    this.onSubmit(true);
+  }
+
+  onSubmit(sendWhatsapp = false): void {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
       return;
@@ -332,6 +339,7 @@ export class CreateContractComponent implements OnInit {
     }
 
     this.submitting.set(true);
+    this.sendWhatsappAfterSave.set(sendWhatsapp);
     const raw = this.form.getRawValue();
 
     const items: ContractItem[] = (raw.items as any[]).map((item) => ({

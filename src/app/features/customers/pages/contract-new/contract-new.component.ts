@@ -96,6 +96,8 @@ export class ContractNewComponent implements OnInit {
   protected readonly loading = signal(true);
   protected readonly isSaving = signal(false);
   protected readonly printContractId = signal<number | null>(null);
+  /** The save in flight came from "حفظ وإرسال واتساب". */
+  protected readonly sendWhatsappAfterSave = signal(false);
 
   // ── lookup data ──
   protected readonly clients = signal<DashboardClient[]>([]);
@@ -392,7 +394,12 @@ export class ContractNewComponent implements OnInit {
 
   // ─────────── Submit ───────────
 
-  protected save(): void {
+  /** Create the contract, then send it to the client on WhatsApp from the print view. */
+  protected saveAndSendWhatsapp(): void {
+    this.save(true);
+  }
+
+  protected save(sendWhatsapp = false): void {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
       this.toast.error(this.firstInvalidFieldMessage() || 'يرجى تعبئة الحقول المطلوبة');
@@ -405,6 +412,7 @@ export class ContractNewComponent implements OnInit {
     }
 
     this.isSaving.set(true);
+    this.sendWhatsappAfterSave.set(sendWhatsapp);
     const raw = this.form.getRawValue();
     const id = this.editId();
 

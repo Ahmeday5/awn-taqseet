@@ -10,19 +10,27 @@ import {
 import { CommonModule } from '@angular/common';
 import { ContractDetails } from '../../../customers/models/client-statement.model';
 import { ContractsService } from '../../services/contracts.service';
+import { PdfExportService } from '../../../../core/services/pdf-export.service';
+import { WhatsappSendButtonComponent } from '../../../../shared/components/whatsapp-send-button/whatsapp-send-button.component';
+import { formatMoneyAr } from '../../../../shared/utils/number-format.util';
+import { paymentFrequencyLabel } from '../../constants/contract-labels';
+import { buildContractLayout } from '../../utils/contract-pdf';
 
 @Component({
   selector: 'app-contract-print-modal',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, WhatsappSendButtonComponent],
   templateUrl: './contract-print-modal.component.html',
   styleUrl: './contract-print-modal.component.scss',
 })
 export class ContractPrintModalComponent implements OnInit, OnDestroy {
   @Input({ required: true }) contractId!: number;
   @Input({ required: true }) onClose!: () => void;
+  /** Opened from "حفظ وإرسال واتساب": send to the client as soon as it loads. */
+  @Input() autoSendWhatsapp = false;
 
   private readonly contractsService = inject(ContractsService);
+  private readonly pdf = inject(PdfExportService);
 
   details = signal<ContractDetails | null>(null);
   loading = signal(true);
@@ -74,13 +82,26 @@ export class ContractPrintModalComponent implements OnInit, OnDestroy {
     window.print();
   }
 
+  protected readonly whatsappCaption = computed(() => {
+    const d = this.details();
+    if (!d) return '';
+    return [
+      `عقد تقسيط رقم ${d.contract.id}`,
+      `إجمالي العقد: ${formatMoneyAr(d.summary.totalContractAmount)}`,
+      `المقدم: ${formatMoneyAr(d.contract.downPayment)}`,
+      `عدد الأقساط: ${d.contract.installmentsCount} (${this.frequencyLabel(d.contract.paymentFrequency)})`,
+    ].join('\n');
+  });
+
+  /** Contract summary + schedule, then one receipt page per installment. */
+  protected readonly buildContractPdf = (): Promise<string> => {
+    const d = this.details();
+    if (!d) return Promise.reject(new Error('Contract not loaded'));
+    return this.pdf.render(buildContractLayout(d));
+  };
+
   frequencyLabel(freq: string): string {
-    const map: Record<string, string> = {
-      Monthly: 'شهري',
-      Quarterly: 'ربع سنوي',
-      SemiAnnual: 'نصف سنوي',
-    };
-    return map[freq] ?? freq;
+    return paymentFrequencyLabel(freq);
   }
 
   formatDate(iso: string): string {

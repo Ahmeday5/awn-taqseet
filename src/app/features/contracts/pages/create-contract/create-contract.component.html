@@ -15,6 +15,16 @@
       }
       حفظ العقد
     </button>
+    <button
+      type="button"
+      class="btn btn-sm btn-wa d-inline-flex align-items-center gap-1"
+      [disabled]="submitting() || form.invalid"
+      (click)="saveAndSendWhatsapp()"
+      title="حفظ العقد وإرساله للعميل على واتساب"
+    >
+      <i class="fa-brands fa-whatsapp" aria-hidden="true"></i>
+      <span>حفظ وإرسال واتساب</span>
+    </button>
   </div>
 </div>
 
@@ -237,6 +247,15 @@
         }
         إتمام وحفظ العقد
       </button>
+      <button
+        type="button"
+        class="btn btn-wa w-100 py-3 mt-2 d-inline-flex align-items-center justify-content-center gap-1"
+        [disabled]="submitting() || form.invalid"
+        (click)="saveAndSendWhatsapp()"
+      >
+        <i class="fa-brands fa-whatsapp" aria-hidden="true"></i>
+        <span>حفظ وإرسال واتساب</span>
+      </button>
     </div>
   </form>
 }
@@ -245,5 +264,6 @@
   <app-contract-print-modal
     [contractId]="printContractId()!"
     [onClose]="closePrintModal.bind(this)"
+    [autoSendWhatsapp]="sendWhatsappAfterSave()"
   />
 }

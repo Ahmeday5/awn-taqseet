@@ -30,6 +30,17 @@
     }
     <span>🖨 طباعة PDF</span>
   </button>
+  @if (selectedClient(); as cli) {
+  <app-whatsapp-send-button
+    documentType="ClientStatement"
+    [documentId]="cli.id"
+    [recipientName]="cli.fullName"
+    [fileName]="'كشف-حساب-' + cli.fullName"
+    [caption]="whatsappCaption()"
+    [pdf]="buildStatementPdf"
+    [disabled]="contractsLoading() || count() === 0"
+  />
+  }
   }
 </div>
 

@@ -90,6 +90,8 @@ export class DirectContractModalComponent {
   protected readonly lookupsLoaded = signal(false);
   protected readonly isEditMode = computed(() => this.editId() !== null);
   protected readonly printContractId = signal<number | null>(null);
+  /** The save in flight came from "حفظ وإرسال واتساب". */
+  protected readonly sendWhatsappAfterSave = signal(false);
   private pendingCreated: CreatedDirectContract | null = null;
 
   // ── inline "add supplier invoice" modal ──
@@ -274,7 +276,12 @@ export class DirectContractModalComponent {
 
   // ── template handlers ──
 
-  protected onSubmit(): void {
+  /** Create the contract, then send it to the client on WhatsApp from the print view. */
+  protected saveAndSendWhatsapp(): void {
+    this.onSubmit(true);
+  }
+
+  protected onSubmit(sendWhatsapp = false): void {
     if (this.submitting()) return;
     if (this.form.invalid) {
       this.form.markAllAsTouched();
@@ -318,6 +325,7 @@ export class DirectContractModalComponent {
 
     this.serverError.set(null);
     this.submitting.set(true);
+    this.sendWhatsappAfterSave.set(sendWhatsapp);
 
     const id = this.editId();
 

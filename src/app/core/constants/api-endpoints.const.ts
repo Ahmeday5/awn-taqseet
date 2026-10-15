@@ -219,4 +219,13 @@ export const API_ENDPOINTS = {
     direct: 'dashboard/contracts/direct',
     updateDirect: (id: number) => `dashboard/contracts/${id}/direct`,
   },
+  whatsapp: {
+    /**
+     * POST: forward a generated PDF to the document's party over WhatsApp
+     * (Wavex). The server resolves the recipient phone from the document.
+     */
+    sendDocument: 'dashboard/whatsapp/send-document',
+    /** GET: connection status of the company's linked WhatsApp number. */
+    status: 'dashboard/whatsapp/status',
+  },
 } as const;

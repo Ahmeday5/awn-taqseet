@@ -43,6 +43,18 @@
     >
       🖨 طباعة
     </button>
+    @if (invoice(); as inv) {
+      <app-whatsapp-send-button
+        documentType="SupplierInvoice"
+        [documentId]="inv.id"
+        [recipientName]="inv.supplierName"
+        [fileName]="'فاتورة-' + inv.invoiceNumber"
+        [caption]="whatsappCaption()"
+        [pdf]="buildInvoicePdf"
+        [disabled]="loading()"
+        [autoSend]="autoSendWhatsapp()"
+      />
+    }
     @if (canDelete() && invoice()) {
       <button
         type="button"

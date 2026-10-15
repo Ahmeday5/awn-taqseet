@@ -9,6 +9,8 @@ import {
   signal,
 } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
+import { firstValueFrom } from 'rxjs';
+import { map } from 'rxjs/operators';
 
 import { ModalComponent } from '../../../../shared/components/modal/modal.component';
 import { PaginationComponent } from '../../../../shared/components/pagination/pagination.component';
@@ -22,6 +24,11 @@ import { DialogService } from '../../../../core/services/dialog.service';
 import { AuthService } from '../../../../core/services/auth.service';
 import { PERMISSIONS } from '../../../../core/constants/permissions.const';
 import { apiErrorToMessage } from '../../../../core/utils/api-error.util';
+import { fetchAllPages } from '../../../../core/utils/api-list.util';
+import { PdfExportService } from '../../../../core/services/pdf-export.service';
+import { formatPrintCurrency, formatPrintDate } from '../../../../core/utils/print-format.util';
+import { WhatsappSendButtonComponent } from '../../../../shared/components/whatsapp-send-button/whatsapp-send-button.component';
+import { formatMoneyAr, formatPercentAr } from '../../../../shared/utils/number-format.util';
 
 import { ShareholdersService } from '../../services/shareholders.service';
 import { Shareholder } from '../../models/shareholder.model';
@@ -58,6 +65,7 @@ const VOUCHER_PREFIX_LEN = 18;
     HasPermissionDirective,
     ReinvestDistributedProfitModalComponent,
     WithdrawDistributedProfitModalComponent,
+    WhatsappSendButtonComponent,
   ],
   templateUrl: './shareholder-statement-modal.component.html',
   styleUrl: './shareholder-statement-modal.component.scss',
@@ -71,6 +79,7 @@ export class ShareholderStatementModalComponent {
   private readonly toast = inject(ToastService);
   private readonly dialog = inject(DialogService);
   private readonly auth = inject(AuthService);
+  private readonly pdf = inject(PdfExportService);
 
   /** Exposed so the template can gate write actions with `*appHasPermission`. */
   protected readonly PERMS = PERMISSIONS;
@@ -309,6 +318,94 @@ export class ShareholderStatementModalComponent {
       ? `${value.slice(0, VOUCHER_PREFIX_LEN)}…`
       : value;
   }
+
+  // ─────────── whatsapp ───────────
+
+  protected readonly whatsappCaption = computed(() => {
+    const sh = this.shareholder();
+    if (!sh) return '';
+    const hero = this.heroFigures();
+    return [
+      `كشف حساب المساهم: ${sh.name}`,
+      `رأس المال: ${formatMoneyAr(hero.contributedAmount)}`,
+      `نسبة الملكية: ${formatPercentAr(hero.ownedPercentage)}`,
+      `الأرباح المستحقة: ${formatMoneyAr(hero.accruedProfit)}`,
+      `الأرباح الموزعة المتاحة: ${formatMoneyAr(this.distributedProfitBalance())}`,
+    ].join('\n');
+  });
+
+  /** Full ledger (every page, current date filter) as a PDF file for WhatsApp. */
+  protected readonly buildStatementPdf = async (): Promise<string> => {
+    const sh = this.shareholder();
+    if (!sh) throw new Error('No shareholder selected');
+
+    const fromDate = this.fromDate() || undefined;
+    const toDate = this.toDate() || undefined;
+    const rows = await firstValueFrom(
+      fetchAllPages<StatementEntry>((pageIndex, pageSize) =>
+        this.service
+          .refreshStatement(sh.id, { pageIndex, pageSize, fromDate, toDate })
+          .pipe(map((res) => res.entries)),
+      ),
+    );
+
+    const hero = this.heroFigures();
+    const st = this.statement();
+    const header = st?.shareholder;
+
+    return this.pdf.renderReport<StatementEntry>({
+      title: 'كشف حساب مساهم',
+      subtitle: sh.name,
+      orientation: 'landscape',
+      fields: [
+        { label: 'المساهم', value: sh.name },
+        { label: 'الهاتف', value: sh.phoneNumber },
+        { label: 'العنوان', value: sh.address },
+        { label: 'خزينة رأس المال', value: header?.capitalTreasuryName ?? sh.capitalTreasuryName ?? '—' },
+        {
+          label: 'الفترة',
+          value: fromDate || toDate
+            ? `${fromDate ? formatPrintDate(fromDate) : 'البداية'} ← ${toDate ? formatPrintDate(toDate) : 'اليوم'}`
+            : 'كل الحركات',
+        },
+      ],
+      metrics: [
+        { label: 'رأس المال', value: formatPrintCurrency(hero.contributedAmount), emphasis: true },
+        { label: 'نسبة الملكية', value: formatPercentAr(hero.ownedPercentage), tone: 'accent' },
+        { label: 'الأرباح المستحقة', value: formatPrintCurrency(hero.accruedProfit), tone: 'positive' },
+        { label: 'الأرباح الموزعة المتاحة', value: formatPrintCurrency(this.distributedProfitBalance()) },
+        ...(st ? [{ label: 'إجمالي الأرباح الموزعة', value: formatPrintCurrency(st.totalProfitDistributed) }] : []),
+      ],
+      table: {
+        caption: `الحركات (${rows.length.toLocaleString('ar-EG')})`,
+        emptyMessage: 'لا توجد حركات في هذه الفترة',
+        rows,
+        columns: [
+          { key: 'date', header: 'التاريخ', align: 'center', format: 'shortDate', width: '10%' },
+          { key: 'transactionType', header: 'النوع', align: 'center', width: '15%', format: (v) => this.txLabel(v as StatementTransactionType) },
+          {
+            key: 'amount',
+            header: 'المبلغ',
+            align: 'end',
+            bold: true,
+            width: '12%',
+            format: (v, row) => `${this.isInflow(row.transactionType) ? '+' : '−'} ${formatPrintCurrency(v)}`,
+          },
+          { key: 'shareholderShare', header: 'نصيب المساهم', align: 'end', format: 'currency', width: '11%' },
+          { key: 'companyShare', header: 'نصيب الشركة', align: 'end', format: 'currency', width: '11%' },
+          {
+            key: 'capitalBalanceAfter',
+            header: 'رأس المال بعد',
+            align: 'end',
+            width: '12%',
+            format: (v, row) => (this.affectsCapital(row.transactionType) ? formatPrintCurrency(v) : '—'),
+          },
+          { key: 'treasuryName', header: 'الخزينة', align: 'start', width: '12%' },
+          { key: (row) => row.notes || '—', header: 'ملاحظات', align: 'start' },
+        ],
+      },
+    });
+  };
 
   private fetch(
     shId: number,
