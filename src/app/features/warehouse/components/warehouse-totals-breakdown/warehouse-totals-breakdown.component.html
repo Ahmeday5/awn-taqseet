@@ -1,0 +1,137 @@
+<div class="card wtb" [class.is-loading]="loading()" [attr.aria-busy]="loading()">
+  <div class="wtb-hdr">
+    <div class="ct">إجماليات المخزون حسب المخزن</div>
+    <div class="wtb-sub">
+      مقارنة الكميات والقيم بين المخازن وفق الفلاتر المحددة أعلاه · اضغط على اسم المخزن لعرض أصنافه
+    </div>
+  </div>
+
+  <!-- ── Wide screens: grouped-header table ── -->
+  <div class="tw wtb-table">
+    <table class="w-100">
+      <thead>
+        <tr>
+          <th rowspan="2" class="wtb-col-name">المخزن</th>
+          <th rowspan="2">الأصناف</th>
+          <th colspan="3" class="wtb-group wtb-sep">الكميات (وحدة)</th>
+          <th colspan="4" class="wtb-group wtb-sep">القيم المالية</th>
+          <th rowspan="2" class="wtb-sep">صافي الربح</th>
+          <th rowspan="2" class="wtb-col-bar">نسبة البيع</th>
+        </tr>
+        <tr>
+          <th class="wtb-sep">المشتراة</th>
+          <th>المباعة</th>
+          <th>المتاحة</th>
+          <th class="wtb-sep">قيمة الشراء</th>
+          <th>قيمة المتاح</th>
+          <th>تكلفة المباع</th>
+          <th>قيمة المبيعات</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (w of viewRows(); track w.warehouseId) {
+          <tr>
+            <td class="wtb-col-name">
+              <button type="button" class="wtb-link" (click)="warehouseSelect.emit(w.warehouseId)">
+                {{ w.warehouseName }}
+              </button>
+            </td>
+            <td>{{ w.productsCount | number }}</td>
+            <td class="wtb-sep">{{ w.purchasedQuantity | number }}</td>
+            <td>{{ w.soldQuantity | number }}</td>
+            <td [class.wtb-warn]="w.availableQuantity <= 0">{{ w.availableQuantity | number }}</td>
+            <td class="wtb-sep">{{ w.purchaseValue | currencyAr: true }}</td>
+            <td>{{ w.availableValue | currencyAr: true }}</td>
+            <td>{{ w.soldCost | currencyAr: true }}</td>
+            <td>{{ w.salesValue | currencyAr: true }}</td>
+            <td class="wtb-sep" [class.wtb-pos]="w.totalProfit >= 0" [class.wtb-neg]="w.totalProfit < 0">
+              {{ w.totalProfit | currencyAr: true }}
+            </td>
+            <td class="wtb-col-bar">
+              <ng-container *ngTemplateOutlet="bar; context: { $implicit: w.sellThroughPercent }" />
+            </td>
+          </tr>
+        }
+      </tbody>
+      @if (viewTotal(); as t) {
+        <tfoot>
+          <tr>
+            <td class="wtb-col-name">الإجمالي العام</td>
+            <td>{{ t.productsCount | number }}</td>
+            <td class="wtb-sep">{{ t.purchasedQuantity | number }}</td>
+            <td>{{ t.soldQuantity | number }}</td>
+            <td>{{ t.availableQuantity | number }}</td>
+            <td class="wtb-sep">{{ t.purchaseValue | currencyAr: true }}</td>
+            <td>{{ t.availableValue | currencyAr: true }}</td>
+            <td>{{ t.soldCost | currencyAr: true }}</td>
+            <td>{{ t.salesValue | currencyAr: true }}</td>
+            <td class="wtb-sep" [class.wtb-pos]="t.totalProfit >= 0" [class.wtb-neg]="t.totalProfit < 0">
+              {{ t.totalProfit | currencyAr: true }}
+            </td>
+            <td class="wtb-col-bar">
+              <ng-container *ngTemplateOutlet="bar; context: { $implicit: t.sellThroughPercent }" />
+            </td>
+          </tr>
+        </tfoot>
+      }
+    </table>
+  </div>
+
+  <!-- ── Narrow screens: one card per warehouse ── -->
+  <div class="wtb-cards">
+    @for (w of viewRows(); track w.warehouseId) {
+      <ng-container *ngTemplateOutlet="mobileCard; context: { $implicit: w, total: false }" />
+    }
+    @if (viewTotal(); as t) {
+      <ng-container *ngTemplateOutlet="mobileCard; context: { $implicit: t, total: true }" />
+    }
+  </div>
+</div>
+
+<ng-template #bar let-pct>
+  <div class="wtb-bar">
+    <span class="wtb-bar-pct">{{ pct }}%</span>
+    <div
+      class="wtb-bar-bg"
+      role="progressbar"
+      aria-label="نسبة البيع"
+      [attr.aria-valuenow]="pct"
+      aria-valuemin="0"
+      aria-valuemax="100"
+    >
+      <div class="wtb-bar-f" [style.width.%]="pct"></div>
+    </div>
+  </div>
+</ng-template>
+
+<ng-template #mobileCard let-w let-total="total">
+  <div class="wtb-card" [class.wtb-card--total]="total">
+    <div class="wtb-card-hdr">
+      @if (total) {
+        <span class="wtb-card-name">الإجمالي العام</span>
+      } @else {
+        <button type="button" class="wtb-link wtb-card-name" (click)="warehouseSelect.emit(w.warehouseId)">
+          {{ w.warehouseName }}
+        </button>
+      }
+      <span class="wtb-chip">{{ w.productsCount | number }} صنف</span>
+    </div>
+
+    <div class="wtb-qty">
+      <div><span>المشتراة</span><b>{{ w.purchasedQuantity | number }}</b></div>
+      <div><span>المباعة</span><b>{{ w.soldQuantity | number }}</b></div>
+      <div><span>المتاحة</span><b [class.wtb-warn]="w.availableQuantity <= 0">{{ w.availableQuantity | number }}</b></div>
+    </div>
+
+    <div class="sr"><span class="wtb-k">قيمة الشراء</span><span>{{ w.purchaseValue | currencyAr: true }}</span></div>
+    <div class="sr"><span class="wtb-k">قيمة المتاح</span><span>{{ w.availableValue | currencyAr: true }}</span></div>
+    <div class="sr"><span class="wtb-k">تكلفة المباع</span><span>{{ w.soldCost | currencyAr: true }}</span></div>
+    <div class="sr"><span class="wtb-k">قيمة المبيعات</span><span>{{ w.salesValue | currencyAr: true }}</span></div>
+    <div class="sr">
+      <span class="wtb-k">صافي الربح</span>
+      <span [class.wtb-pos]="w.totalProfit >= 0" [class.wtb-neg]="w.totalProfit < 0">{{ w.totalProfit | currencyAr: true }}</span>
+    </div>
+
+    <ng-container *ngTemplateOutlet="bar; context: { $implicit: w.sellThroughPercent }" />
+  </div>
+</ng-template>

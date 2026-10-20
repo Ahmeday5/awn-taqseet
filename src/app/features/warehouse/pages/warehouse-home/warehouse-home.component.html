@@ -50,6 +50,7 @@
         <span>{{ w.location }}</span>
       </div>
 
+      <div class="sr"><span style="color:var(--txt2)">عدد الأصناف</span><span>{{ w.productsCount }} صنف</span></div>
       <div class="sr"><span style="color:var(--txt2)">المشتراة</span><span>{{ w.purchasedQuantity }} وحدة</span></div>
       <div class="sr"><span style="color:var(--txt2)">المباعة</span><span style="color:var(--bl)">{{ w.soldQuantity }} وحدة</span></div>
       <div class="sr">
@@ -60,6 +61,8 @@
         >{{ w.availableQuantity }} وحدة</span>
       </div>
       <div class="sr"><span style="color:var(--txt2)">قيمة الشراء</span><span>{{ w.purchaseValue | currencyAr: true }}</span></div>
+      <div class="sr"><span style="color:var(--txt2)">قيمة المتاح</span><span>{{ w.availableValue | currencyAr: true }}</span></div>
+      <div class="sr"><span style="color:var(--txt2)">تكلفة المباع</span><span>{{ w.soldCost | currencyAr: true }}</span></div>
       <div class="sr"><span style="color:var(--txt2)">إجمالي الربح</span><span style="color:var(--gr)">{{ w.totalProfit | currencyAr: true }}</span></div>
 
       <div class="prog-bg">
@@ -113,7 +116,7 @@
 
 
 <!-- ── Live inventory table per warehouse ── -->
-<div class="card">
+<div class="card wh-inv-card" #inventoryCard>
   <div class="chdr">
     <div class="ct">تفاصيل المخزون مع الأرقام التسلسلية</div>
     <div class="d-flex align-items-center gap-2 flex-wrap">
@@ -126,12 +129,13 @@
       />
       <select
         class="wh-select"
-        [value]="invOnlyAvailable() === undefined ? '' : invOnlyAvailable()"
-        (change)="onInvOnlyAvailableChange($any($event.target).value)"
+        aria-label="فلتر التوافر"
+        [value]="invAvailability()"
+        (change)="onInvAvailabilityChange($any($event.target).value)"
       >
-        <option value="">الكل (متاح وغير متاح)</option>
-        <option value="true">المتاح فقط</option>
-        <option value="false">غير المتاح فقط</option>
+        @for (opt of availabilityOptions; track opt.value) {
+          <option [value]="opt.value">{{ opt.label }}</option>
+        }
       </select>
       <select
         class="wh-select"
@@ -157,6 +161,8 @@
     </div>
   </div>
 
+  <app-inventory-totals-strip [totals]="invTotals()" [loading]="invLoading()" />
+
   <div class="tw" style="margin-bottom:0">
     <table class="w-100">
       <thead>
@@ -168,12 +174,15 @@
           <th class="wh-w-price">سعر الشراء</th>
           <th class="wh-w-price">سعر البيع</th>
           <th class="wh-w-num">الهامش %</th>
+          <th class="wh-w-price">قيمة المتاح</th>
+          <th class="wh-w-price">تكلفة المباع</th>
+          <th class="wh-w-price">قيمة المبيعات</th>
           <th class="wh-w-price">إجمالي الربح</th>
           <th class="wh-w-notes">ملاحظات</th>
         </tr>
       </thead>
       <tbody>
-        @for (item of inventory(); track item.productId) {
+        @for (item of inventoryRows(); track item.productId + '-' + item.warehouseId) {
           <tr>
             <td class="fw-600">{{ item.productName }}</td>
             <td>{{ item.purchasedQuantity }}</td>
@@ -184,12 +193,15 @@
             <td>{{ item.purchasePrice | currencyAr: true }}</td>
             <td>{{ item.sellingPrice | currencyAr: true }}</td>
             <td class="wh-pos">{{ item.marginPercent | number: '1.0-1' }}%</td>
+            <td>{{ item.availableValue | currencyAr: true }}</td>
+            <td>{{ item.soldCost | currencyAr: true }}</td>
+            <td>{{ item.salesValue | currencyAr: true }}</td>
             <td class="wh-pos">{{ item.totalProfit | currencyAr: true }}</td>
             <td class="wh-w-notes" [title]="item.notes || ''">{{ item.notes || '—' }}</td>
           </tr>
         } @empty {
           <tr>
-            <td colspan="9" class="wh-inv-empty">
+            <td colspan="12" class="wh-inv-empty">
               @if (invLoading()) {
                 <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
                 <span>جاري تحميل الأصناف...</span>
@@ -219,6 +231,17 @@
     />
   }
 </div>
+
+
+<!-- ── Per-warehouse totals (only when "all warehouses" is selected) ── -->
+@if (showWarehouseBreakdown()) {
+  <app-warehouse-totals-breakdown
+    [rows]="invWarehouseTotals()"
+    [grandTotal]="invTotals()"
+    [loading]="invLoading()"
+    (warehouseSelect)="onBreakdownWarehouseSelect($event)"
+  />
+}
 
 
 <app-warehouse-form-modal

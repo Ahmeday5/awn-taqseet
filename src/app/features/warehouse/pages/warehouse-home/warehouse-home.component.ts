@@ -2,9 +2,11 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  ElementRef,
   inject,
   OnInit,
   signal,
+  viewChild,
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { DecimalPipe } from '@angular/common';
@@ -12,11 +14,24 @@ import { CurrencyArPipe } from '../../../../shared/pipes/currency-ar.pipe';
 import { PaginationComponent } from '../../../../shared/components/pagination/pagination.component';
 import { WarehouseService } from '../../services/warehouse.service';
 import {
+  InventoryAvailability,
   Warehouse,
   WarehouseInventoryItem,
+  WarehouseInventoryQuery,
+  WarehouseInventoryResponse,
+  WarehouseInventoryTotals,
+  WarehouseInventoryWarehouseTotals,
   WarehouseSummary,
 } from '../../models/warehouse.model';
+import {
+  DEFAULT_INVENTORY_AVAILABILITY,
+  INVENTORY_AVAILABILITY_OPTIONS,
+  toInventoryAvailability,
+} from '../../constants/inventory-availability';
+import { salesValue } from '../../utils/inventory-metrics';
 import { WarehouseFormModalComponent } from '../../components/warehouse-form-modal/warehouse-form-modal.component';
+import { InventoryTotalsStripComponent } from '../../components/inventory-totals-strip/inventory-totals-strip.component';
+import { WarehouseTotalsBreakdownComponent } from '../../components/warehouse-totals-breakdown/warehouse-totals-breakdown.component';
 import { FormMode } from '../../../../shared/models/form-mode.model';
 import { DialogService } from '../../../../core/services/dialog.service';
 import { ToastService } from '../../../../core/services/toast.service';
@@ -46,7 +61,8 @@ const INVENTORY_PAGE_SIZE = 10;
  *      the card grid with real purchased/sold/available/value/profit.
  *
  *   2. Live per-warehouse inventory (`/dashboard/warehouses/inventory`)
- *      — paginated + name-searchable, fed by a warehouse picker.
+ *      — paginated + name-searchable, fed by a warehouse picker, with
+ *      grand totals and (for "all warehouses") a per-warehouse breakdown.
  *
  *   3. CRUD modal (create / edit / delete) for warehouses themselves.
  *      Every successful mutation re-fetches the summary so the cards
@@ -62,6 +78,8 @@ const INVENTORY_PAGE_SIZE = 10;
     CurrencyArPipe,
     PaginationComponent,
     WarehouseFormModalComponent,
+    InventoryTotalsStripComponent,
+    WarehouseTotalsBreakdownComponent,
   ],
   templateUrl: './warehouse-home.component.html',
   styleUrl: './warehouse-home.component.scss',
@@ -102,12 +120,22 @@ export class WarehouseHomeComponent implements OnInit {
   /** Selected warehouse for the inventory table; 0 = all warehouses. */
   protected readonly selectedWarehouseId = signal<number>(0);
   protected readonly invSearch   = signal('');
-  /** `undefined` = all, `true` = available only, `false` = unavailable only. */
-  protected readonly invOnlyAvailable = signal<boolean | undefined>(undefined);
+  protected readonly invAvailability = signal<InventoryAvailability>(DEFAULT_INVENTORY_AVAILABILITY);
+  protected readonly availabilityOptions = INVENTORY_AVAILABILITY_OPTIONS;
   protected readonly invPageIndex = signal(1);
   protected readonly invPageSize  = signal(INVENTORY_PAGE_SIZE);
   protected readonly invCount      = signal(0);
   protected readonly invTotalPages = signal(0);
+  /** Aggregates over the whole filtered result set, not just this page. */
+  protected readonly invTotals          = signal<WarehouseInventoryTotals | null>(null);
+  protected readonly invWarehouseTotals = signal<WarehouseInventoryWarehouseTotals[]>([]);
+
+  /** Per-warehouse breakdown only makes sense when no single warehouse is picked. */
+  protected readonly showWarehouseBreakdown = computed(
+    () => this.selectedWarehouseId() === 0 && this.invWarehouseTotals().length > 0,
+  );
+
+  private readonly inventoryCard = viewChild<ElementRef<HTMLElement>>('inventoryCard');
 
   // ── modal state ──
   protected readonly modalOpen      = signal(false);
@@ -116,6 +144,9 @@ export class WarehouseHomeComponent implements OnInit {
   protected readonly deletingId     = signal<number | null>(null);
 
   // ── derived ──
+  protected readonly inventoryRows = computed(() =>
+    this.inventory().map((item) => ({ ...item, salesValue: salesValue(item) })),
+  );
   protected readonly hasWarehouses = computed(
     () => this.warehouses().length > 0,
   );
@@ -184,12 +215,10 @@ export class WarehouseHomeComponent implements OnInit {
   }
 
   private fetchInventory(force: boolean): void {
-    const warehouseId = this.selectedWarehouseId();
-
-    const query = {
-      warehouseId,
+    const query: WarehouseInventoryQuery = {
+      warehouseId: this.selectedWarehouseId(),
       search: this.invSearch().trim(),
-      onlyAvailable: this.invOnlyAvailable(),
+      availability: this.invAvailability(),
       pageIndex: this.invPageIndex(),
       pageSize: this.invPageSize(),
     };
@@ -200,18 +229,22 @@ export class WarehouseHomeComponent implements OnInit {
       : this.svc.inventory(query);
     stream$.subscribe({
       next: (res) => {
-        this.inventory.set(res?.data ?? []);
-        this.invCount.set(res?.count ?? 0);
-        this.invTotalPages.set(res?.totalPages ?? 0);
+        this.applyInventory(res);
         this.invLoading.set(false);
       },
       error: () => {
-        this.inventory.set([]);
-        this.invCount.set(0);
-        this.invTotalPages.set(0);
+        this.applyInventory(null);
         this.invLoading.set(false);
       },
     });
+  }
+
+  private applyInventory(res: WarehouseInventoryResponse | null): void {
+    this.inventory.set(res?.data ?? []);
+    this.invCount.set(res?.count ?? 0);
+    this.invTotalPages.set(res?.totalPages ?? 0);
+    this.invTotals.set(res?.totals ?? null);
+    this.invWarehouseTotals.set(res?.warehouseTotals ?? []);
   }
 
   // ─────────── inventory filter handlers ───────────
@@ -229,10 +262,16 @@ export class WarehouseHomeComponent implements OnInit {
     this.fetchInventoryDebounced();
   }
 
-  protected onInvOnlyAvailableChange(value: string): void {
-    this.invOnlyAvailable.set(value === '' ? undefined : value === 'true');
+  protected onInvAvailabilityChange(value: string): void {
+    this.invAvailability.set(toInventoryAvailability(value));
     this.invPageIndex.set(1);
     this.fetchInventoryNow();
+  }
+
+  /** Drill-down from the per-warehouse breakdown into that warehouse's rows. */
+  protected onBreakdownWarehouseSelect(warehouseId: number): void {
+    this.onWarehouseChange(String(warehouseId));
+    this.inventoryCard()?.nativeElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   protected onInvPageChange(page: number): void {

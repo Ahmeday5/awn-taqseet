@@ -1,3 +1,5 @@
+import { PagedResponse } from '../../../core/models/api-response.model';
+
 export type StockAlertLevel = 'critical' | 'low' | 'ok';
 export type AlertSeverity   = 'out' | 'critical' | 'low' | 'ok';
 
@@ -135,11 +137,17 @@ export interface WarehouseSummary {
   isActive: boolean;
   /** Backend-provided localized status label (e.g. "نشط" / "متوقف"). */
   status: string;
+  /** Distinct products held in this warehouse. */
+  productsCount: number;
   purchasedQuantity: number;
+  /** Net of cancelled sales invoices — rendered as-is, never recomputed. */
   soldQuantity: number;
   availableQuantity: number;
-  /** Total cost of items currently held (purchase price × quantity). */
   purchaseValue: number;
+  /** Cost of the units still on hand. */
+  availableValue: number;
+  /** Purchase cost of the units sold. */
+  soldCost: number;
   totalProfit: number;
   /** 0 → 100. */
   soldPercent: number;
@@ -159,10 +167,13 @@ export interface WarehouseInventoryItem {
   purchasedQuantity: number;
   soldQuantity: number;
   availableQuantity: number;
+  /** Average cost of the on-hand balance, from its actual purchase invoices. */
   purchasePrice: number;
   sellingPrice: number;
   marginPercent: number;
-  /** Comma-separated string or `null` when not tracked. */
+  purchaseValue: number;
+  availableValue: number;
+  soldCost: number;
   totalProfit: number;
   /**
    * Per-line notes from every purchase invoice that brought this product
@@ -172,12 +183,44 @@ export interface WarehouseInventoryItem {
   notes: string | null;
 }
 
+/**
+ * Aggregate over the *whole filtered result set* (not just the current
+ * page). Shared by `totals` (grand total — `warehouseId`/`warehouseName`
+ * are `null`) and every entry of `warehouseTotals`.
+ */
+export interface WarehouseInventoryTotals {
+  warehouseId: number | null;
+  warehouseName: string | null;
+  productsCount: number;
+  purchasedQuantity: number;
+  soldQuantity: number;
+  availableQuantity: number;
+  purchaseValue: number;
+  availableValue: number;
+  soldCost: number;
+  totalProfit: number;
+}
+
+/** A per-warehouse aggregate row — identity fields are always present. */
+export interface WarehouseInventoryWarehouseTotals extends WarehouseInventoryTotals {
+  warehouseId: number;
+  warehouseName: string;
+}
+
+export interface WarehouseInventoryResponse extends PagedResponse<WarehouseInventoryItem> {
+  totals: WarehouseInventoryTotals | null;
+  /** One entry per warehouse present in the filtered results. */
+  warehouseTotals: WarehouseInventoryWarehouseTotals[];
+}
+
+/** Stock-availability filter. `all` is sent as "no filter" (param omitted). */
+export type InventoryAvailability = 'all' | 'available' | 'unavailable';
+
 export interface WarehouseInventoryQuery {
   /** Omit (or 0) to fetch inventory across all warehouses. */
   warehouseId?: number;
   pageIndex?: number;
   pageSize?: number;
   search?: string;
-  /** Omit to fetch all; `true`/`false` filters to available/unavailable only. */
-  onlyAvailable?: boolean;
+  availability?: InventoryAvailability;
 }

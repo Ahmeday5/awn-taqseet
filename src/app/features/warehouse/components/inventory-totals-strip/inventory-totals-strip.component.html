@@ -1,0 +1,66 @@
+<div
+  class="its"
+  [class.is-loading]="loading()"
+  [attr.aria-busy]="loading()"
+  role="group"
+  aria-label="إجمالي المخزون للنتائج المحددة"
+>
+  @if (view(); as t) {
+    <div class="its-card">
+      <div class="its-l">عدد الأصناف</div>
+      <div class="its-v">{{ t.productsCount | number }}</div>
+      <div class="its-s">صنف ضمن النطاق المحدد</div>
+    </div>
+
+    <div class="its-card">
+      <div class="its-l">الكمية المتاحة</div>
+      <div class="its-v">{{ t.availableQuantity | number }} <small>وحدة</small></div>
+      <div class="its-s">من أصل {{ t.purchasedQuantity | number }} وحدة مشتراة</div>
+    </div>
+
+    <div class="its-card">
+      <div class="its-l">قيمة المخزون المتاح</div>
+      <div class="its-v">{{ t.availableValue | currencyAr: true }}</div>
+      <div class="its-s">بسعر التكلفة · قيمة الشراء {{ t.purchaseValue | currencyAr: true }}</div>
+    </div>
+
+    <div class="its-card its-card--accent">
+      <div class="its-l">قيمة المبيعات</div>
+      <div class="its-v">{{ t.salesValue | currencyAr: true }}</div>
+      <div class="its-s">
+        {{ t.soldQuantity | number }} وحدة مباعة · {{ t.sellThroughPercent }}% من المشتريات
+      </div>
+      <div
+        class="its-prog"
+        role="progressbar"
+        aria-label="نسبة البيع"
+        [attr.aria-valuenow]="t.sellThroughPercent"
+        aria-valuemin="0"
+        aria-valuemax="100"
+      >
+        <div class="its-prog-f" [style.width.%]="t.sellThroughPercent"></div>
+      </div>
+    </div>
+
+    <div class="its-card">
+      <div class="its-l">تكلفة المباع</div>
+      <div class="its-v">{{ t.soldCost | currencyAr: true }}</div>
+      <div class="its-s">تكلفة شراء الوحدات المباعة</div>
+    </div>
+
+    <div class="its-card">
+      <div class="its-l">صافي الربح</div>
+      <div class="its-v" [class.its-v--neg]="t.totalProfit < 0" [class.its-v--pos]="t.totalProfit >= 0">
+        {{ t.totalProfit | currencyAr: true }}
+      </div>
+      <div class="its-s">هامش {{ t.marginPercent }}% من المبيعات</div>
+    </div>
+  } @else {
+    @for (label of placeholderLabels; track label) {
+      <div class="its-card">
+        <div class="its-l">{{ label }}</div>
+        <div class="its-v its-v--empty">—</div>
+      </div>
+    }
+  }
+</div>

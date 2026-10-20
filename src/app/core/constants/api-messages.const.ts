@@ -55,6 +55,19 @@ const EXACT_MESSAGES: Record<string, string> = {
     'لا يمكن تعديل هذا السند لأنه مرتبط بعملية في النظام',
 };
 
+/**
+ * Backend messages that are already specific, actionable Arabic and must
+ * reach the user verbatim. They embed free user text (e.g. a product name),
+ * so without this guard a generic rule below could match that text and
+ * swap the message for an unrelated one.
+ */
+const VERBATIM_PATTERNS: readonly RegExp[] = [
+  // Purchase invoice partly sold — edit/delete blocked, e.g.
+  // "لا يمكن حذف هذه الفاتورة: تم بيع 3 من كمية المنتج 'X' من هذه الفاتورة. …"
+  /^لا\s+يمكن\s+(?:حذف|تعديل)\s+هذه\s+الفاتورة\s*:/,
+  /تم\s+بيع\s+[\d٠-٩]+\s+من\s+كمية\s+المنتج/,
+];
+
 interface MessagePattern {
   readonly test: RegExp;
   /** Receives the regex match so dynamic fragments can be reused if needed. */
@@ -180,6 +193,8 @@ export function translateApiMessage(
   if (exact) return exact;
 
   const trimmed = raw.trim();
+  if (VERBATIM_PATTERNS.some((re) => re.test(trimmed))) return trimmed;
+
   for (const { test, ar } of MESSAGE_PATTERNS) {
     const match = trimmed.match(test);
     if (match) return ar(match);

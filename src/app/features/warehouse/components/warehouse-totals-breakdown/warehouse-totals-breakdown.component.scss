@@ -1,0 +1,176 @@
+:host { display: block; }
+
+$wtb-breakpoint: 768px;
+
+.wtb {
+  transition: opacity 0.15s;
+  &.is-loading { opacity: 0.6; }
+}
+
+.wtb-hdr { margin-bottom: 10px; }
+
+.wtb-sub {
+  font-size: 10px;
+  color: var(--txt3);
+  margin-top: 2px;
+}
+
+/* ── shared cell tones ── */
+.wtb-pos  { color: var(--gr); font-weight: 600; }
+.wtb-neg  { color: var(--re); font-weight: 600; }
+.wtb-warn { color: var(--am); font-weight: 600; }
+
+.wtb-link {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  color: var(--txt);
+  cursor: pointer;
+  text-align: start;
+
+  &:hover,
+  &:focus-visible {
+    color: var(--bl);
+    text-decoration: underline;
+    outline: none;
+  }
+}
+
+/* ── Wide screens: table ── */
+.wtb-table {
+  margin-bottom: 0;
+
+  @media (max-width: ($wtb-breakpoint - 1px)) { display: none; }
+
+  table {
+    thead th.wtb-group {
+      font-weight: 600;
+      color: var(--txt);
+    }
+
+    thead tr:first-child th { border-bottom: 1px solid var(--brd); }
+
+    tfoot td {
+      padding: 9px 10px;
+      text-align: center;
+      font-weight: 700;
+      background: var(--bg3);
+      border-top: 1.5px solid var(--brd2);
+    }
+  }
+
+  .wtb-col-name { text-align: start; }
+
+  // Vertical rules framing the "quantities" and "values" column groups.
+  .wtb-sep { border-inline-start: 1px solid var(--brd); }
+
+  .wtb-col-bar { width: 22%; min-width: 160px; }
+}
+
+/* ── Sell-through bar ── */
+.wtb-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.wtb-bar-bg {
+  flex: 1;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--brd);
+  overflow: hidden;
+}
+
+.wtb-bar-f {
+  height: 100%;
+  max-width: 100%;
+  border-radius: 3px;
+  background: var(--bl);
+  transition: width 0.25s ease;
+}
+
+.wtb-bar-pct {
+  order: 2; // percentage sits at the far (left) end in RTL, as in the table
+  min-width: 32px;
+  font-size: 10px;
+  color: var(--txt2);
+  text-align: end;
+}
+
+/* ── Narrow screens: cards ── */
+.wtb-cards {
+  display: none;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+
+  @media (max-width: ($wtb-breakpoint - 1px)) { display: grid; }
+  @media (max-width: 480px) { grid-template-columns: 1fr; }
+}
+
+.wtb-card {
+  background: var(--bg2);
+  border: 1px solid var(--brd);
+  border-radius: var(--r);
+  padding: 10px 11px;
+  min-width: 0;
+
+  &--total {
+    background: var(--bg3);
+    border-color: var(--brd2);
+  }
+
+  .wtb-bar { margin-top: 8px; }
+}
+
+.wtb-card-hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.wtb-card-name {
+  font-size: 13px;
+  font-weight: 700;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wtb-chip {
+  flex-shrink: 0;
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: var(--bl-l);
+  color: var(--bl-d);
+}
+
+.wtb-qty {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin-bottom: 6px;
+
+  > div {
+    background: var(--bg3);
+    border-radius: var(--r);
+    padding: 6px 4px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+
+  span { font-size: 10px; color: var(--txt2); }
+  b    { font-size: 13px; }
+}
+
+.wtb-card--total .wtb-qty > div { background: var(--bg2); }
+
+.wtb-k { color: var(--txt2); }

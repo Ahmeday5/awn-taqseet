@@ -5,13 +5,12 @@ import {
   CreateWarehousePayload,
   UpdateWarehousePayload,
   Warehouse,
-  WarehouseInventoryItem,
   WarehouseInventoryQuery,
+  WarehouseInventoryResponse,
   WarehouseSummary,
 } from '../models/warehouse.model';
 import { ApiService } from '../../../core/services/api.service';
 import { API_ENDPOINTS } from '../../../core/constants/api-endpoints.const';
-import { PagedResponse } from '../../../core/models/api-response.model';
 import {
   withCache,
   withCacheBypass,
@@ -112,13 +111,14 @@ export class WarehouseService {
 
   // ─────────────────────────────────────────────────────────────────
   //  Live API — /dashboard/warehouses/inventory
-  //  Per-warehouse paginated inventory rows (with name search).
+  //  Per-warehouse paginated inventory rows (with name search), plus
+  //  grand + per-warehouse totals over the whole filtered result set.
   // ─────────────────────────────────────────────────────────────────
 
   inventory(
     query: WarehouseInventoryQuery,
-  ): Observable<PagedResponse<WarehouseInventoryItem>> {
-    return this.api.get<PagedResponse<WarehouseInventoryItem>>(
+  ): Observable<WarehouseInventoryResponse> {
+    return this.api.get<WarehouseInventoryResponse>(
       API_ENDPOINTS.warehouses.inventory,
       {
         params: this.toInventoryParams(query),
@@ -129,8 +129,8 @@ export class WarehouseService {
 
   refreshInventory(
     query: WarehouseInventoryQuery,
-  ): Observable<PagedResponse<WarehouseInventoryItem>> {
-    return this.api.get<PagedResponse<WarehouseInventoryItem>>(
+  ): Observable<WarehouseInventoryResponse> {
+    return this.api.get<WarehouseInventoryResponse>(
       API_ENDPOINTS.warehouses.inventory,
       {
         params: this.toInventoryParams(query),
@@ -145,7 +145,11 @@ export class WarehouseService {
       PageIndex: query.pageIndex ?? 1,
       PageSize: query.pageSize ?? 10,
       search: query.search ?? '',
-      onlyAvailable: query.onlyAvailable,
+      // `all` means "no filter" — the param must be omitted, not sent.
+      availability:
+        query.availability && query.availability !== 'all'
+          ? query.availability
+          : undefined,
     };
   }
 }
