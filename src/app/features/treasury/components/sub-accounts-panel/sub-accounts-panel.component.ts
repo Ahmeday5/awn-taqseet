@@ -39,7 +39,7 @@ const REFETCH_DEBOUNCE_MS = 250;
 
 /**
  * Self-contained management surface for treasury sub-accounts — a single card
- * rendered beside the monthly-profits panel on the treasury home, gated to
+ * rendered on the treasury home, gated to
  * Admin / GeneralManager by the host.
  *
  * Owns the paginated list and all four child dialogs (create/edit, add

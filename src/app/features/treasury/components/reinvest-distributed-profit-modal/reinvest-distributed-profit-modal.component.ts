@@ -100,8 +100,9 @@ export class ReinvestDistributedProfitModalComponent {
 
   protected readonly amount = computed(() => roundMoney(this.draftAmount() ?? 0));
 
+  /** Not clamped — going past the balance shows a negative (red) remainder. */
   protected readonly remainingBalance = computed(() =>
-    Math.max(0, roundMoney(this.maxAmount() - this.amount())),
+    roundMoney(this.maxAmount() - this.amount()),
   );
 
   protected readonly projectedCapital = computed(

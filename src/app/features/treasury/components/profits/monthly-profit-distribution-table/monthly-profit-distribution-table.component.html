@@ -1,0 +1,108 @@
+<ng-template #figureCell let-row="row" let-col="col" let-mismatch="mismatch">
+  @let v = value(row, col.key);
+  <td [class.ps-loss]="v < 0" [class.ps-net]="col.strong">
+    {{ v | amountAr }}
+    @if (mismatch && col.key === 'distributedProfit') {
+      <span class="ps-row-warn" role="img" aria-label="لا يساوي صافي الربح" title="الأرباح الموزعة لا تساوي صافي الربح">⚠️</span>
+    }
+  </td>
+</ng-template>
+
+<ng-template #cells let-v="view">
+  <th scope="row" class="ps-month">
+    @if (showCompanyFigures()) {
+      <button
+        type="button"
+        class="ps-row-btn"
+        [attr.aria-label]="'عرض تفاصيل توزيع ' + v.row.monthName"
+        (click)="open(v.row); $event.stopPropagation()"
+      >
+        {{ v.row.monthName }}
+        <span class="ps-row-chevron" aria-hidden="true">‹</span>
+      </button>
+    } @else {
+      {{ v.row.monthName }}
+    }
+  </th>
+  @for (col of leading; track col.key) {
+    <ng-container *ngTemplateOutlet="figureCell; context: { row: v.row, col, mismatch: v.mismatch }" />
+  }
+  @for (cell of v.reps; track $index) {
+    <td [class.ps-loss]="cell.amount < 0">
+      @if (cell.lines) {
+        <app-profit-info [label]="cell.amount | amountAr" [lines]="cell.lines" heading="تقسيم أرباح المندوب" />
+      } @else {
+        {{ cell.amount | amountAr }}
+      }
+    </td>
+  }
+  @for (col of trailing(); track col.key) {
+    <ng-container *ngTemplateOutlet="figureCell; context: { row: v.row, col, mismatch: v.mismatch }" />
+  }
+</ng-template>
+
+<section aria-labelledby="mpdt-title">
+  <h2 id="mpdt-title" class="ps-banner">توزيع الأرباح الشهرية</h2>
+  @if (showCompanyFigures()) {
+    <p class="ps-hint">اضغط على أي شهر لعرض تفاصيل توزيعه على المناديب والشركة والمساهمين.</p>
+  }
+
+  <div class="ps-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th scope="col" class="ps-month">الشهر</th>
+          @for (col of leading; track col.key) {
+            <th scope="col" [class.ps-net]="col.strong">
+              {{ col.label }}
+              <app-profit-info [field]="col.field" />
+            </th>
+          }
+          @for (rep of representatives(); track rep.representativeId) {
+            <th scope="col">{{ rep.representativeName }}</th>
+          }
+          @for (col of trailing(); track col.key) {
+            <th scope="col" [class.ps-net]="col.strong">
+              {{ col.label }}
+              <app-profit-info [field]="col.field" />
+            </th>
+          }
+        </tr>
+      </thead>
+
+      <tbody>
+        @for (v of months(); track v.row.month) {
+          <tr
+            [class.ps-row]="showCompanyFigures()"
+            [class.ps-current]="v.row.isCurrentMonth"
+            [attr.aria-current]="v.row.isCurrentMonth ? 'date' : null"
+            (click)="open(v.row)"
+          >
+            <ng-container *ngTemplateOutlet="cells; context: { view: v }" />
+          </tr>
+        }
+      </tbody>
+
+      @if (total(); as tv) {
+        <tfoot>
+          <tr [class.ps-row]="showCompanyFigures()" (click)="open(tv.row)">
+            <ng-container *ngTemplateOutlet="cells; context: { view: tv }" />
+          </tr>
+        </tfoot>
+      }
+    </table>
+  </div>
+</section>
+
+@if (showCompanyFigures()) {
+  <app-modal
+    [open]="selected() !== null"
+    [title]="detailsTitle()"
+    size="xl"
+    (closed)="selected.set(null)"
+  >
+    @if (selected(); as row) {
+      <app-profit-month-details [row]="row" [representatives]="representatives()" />
+    }
+  </app-modal>
+}

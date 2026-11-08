@@ -13,27 +13,25 @@ import { ModalComponent } from '../../../../shared/components/modal/modal.compon
 import { PaginationComponent } from '../../../../shared/components/pagination/pagination.component';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { CurrencyArPipe } from '../../../../shared/pipes/currency-ar.pipe';
+import { MoneyArPipe } from '../../../../shared/pipes/money-ar.pipe';
 import { DateArPipe } from '../../../../shared/pipes/date-ar.pipe';
 import { ApiError } from '../../../../core/models/api-response.model';
 import { ToastService } from '../../../../core/services/toast.service';
 
 import { ShareholdersService } from '../../services/shareholders.service';
 import {
-  CompanyProfitEntry,
   CompanyProfitStatement,
   CompanyProfitStatementQuery,
-  CompanyProfitVoucherType,
 } from '../../models/company-profit-statement.model';
 import {
-  COMPANY_PROFIT_VOUCHER_BADGE,
-  COMPANY_PROFIT_VOUCHER_LABELS,
-  isCompanyProfitInflow,
-  referenceTypeBadge,
-  referenceTypeLabel,
+  TRANSFER_BADGE,
+  toCompanyProfitEntryRow,
 } from '../../constants/company-profit-labels';
 
 const DEFAULT_PAGE_SIZE = 10;
-const VOUCHER_PREFIX_LEN = 18;
+
+/** Smallest balance gap worth flagging — anything below is rounding noise. */
+const DIFFERENCE_THRESHOLD = 0.01;
 
 @Component({
   selector: 'app-company-profit-statement-modal',
@@ -44,6 +42,7 @@ const VOUCHER_PREFIX_LEN = 18;
     PaginationComponent,
     BadgeComponent,
     CurrencyArPipe,
+    MoneyArPipe,
     DateArPipe,
   ],
   templateUrl: './company-profit-statement-modal.component.html',
@@ -71,9 +70,20 @@ export class CompanyProfitStatementModalComponent {
   protected readonly totalPages = signal(0);
 
   // ── derived ──
-  protected readonly entries = computed(
-    () => this.statement()?.entries.data ?? [],
+  protected readonly transferBadge = TRANSFER_BADGE;
+
+  protected readonly rows = computed(() =>
+    (this.statement()?.entries.data ?? []).map(toCompanyProfitEntryRow),
   );
+
+  /**
+   * Non-null only when the treasury balance isn't explained by the listed
+   * lines (received − paid ≠ balance). Expected to be 0.
+   */
+  protected readonly unexplainedDifference = computed(() => {
+    const diff = this.statement()?.unexplainedDifference ?? 0;
+    return Math.abs(diff) >= DIFFERENCE_THRESHOLD ? diff : null;
+  });
 
   protected readonly hasFilters = computed(
     () => !!this.fromDate() || !!this.toDate(),
@@ -122,26 +132,6 @@ export class CompanyProfitStatementModalComponent {
     this.pageSize.set(size);
     this.pageIndex.set(1);
     this.fetch(1, size, false);
-  }
-
-  protected voucherLabel(type: CompanyProfitVoucherType): string {
-    return COMPANY_PROFIT_VOUCHER_LABELS[type] ?? type;
-  }
-
-  protected voucherBadge(type: CompanyProfitVoucherType) {
-    return COMPANY_PROFIT_VOUCHER_BADGE[type] ?? 'info';
-  }
-
-  protected refLabel(type: string): string {
-    return referenceTypeLabel(type);
-  }
-
-  protected refBadge(type: string) {
-    return referenceTypeBadge(type);
-  }
-
-  protected isInflow(type: CompanyProfitVoucherType): boolean {
-    return isCompanyProfitInflow(type);
   }
 
   private fetch(pageIndex: number, pageSize: number, force: boolean): void {

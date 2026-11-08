@@ -1,0 +1,142 @@
+@use '../profits-sheet' as ps;
+
+.ps-card {
+  border: 3px solid ps.$ps-frame;
+  background: ps.$ps-frame;
+  display: grid;
+  gap: 3px;
+  color: ps.$ps-ink;
+}
+
+.ps-head {
+  margin: 0;
+  padding: 18px 12px;
+  background: ps.$ps-green-light;
+  font-size: 14px;
+  font-weight: 800;
+  text-align: center;
+}
+
+/* ── equation row ── */
+.ps-equation {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 12px;
+  background: #fff;
+}
+
+.ps-term {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 130px;
+  padding: 10px 12px;
+  border: 1px solid ps.$ps-grid;
+  border-radius: 6px;
+  background: ps.$ps-green-pale;
+  text-align: center;
+}
+
+.ps-term-strong {
+  border: 2px solid ps.$ps-frame;
+  background: ps.$ps-gold;
+
+  .ps-term-value {
+    font-size: 16px;
+  }
+}
+
+.ps-term-expense {
+  background: #fde2e2;
+}
+
+.ps-term-label {
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.ps-term-value {
+  font-size: 14.5px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.ps-op {
+  align-self: center;
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1;
+  color: ps.$ps-frame;
+}
+
+@media (max-width: 575.98px) {
+  .ps-equation {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .ps-op {
+    text-align: center;
+  }
+}
+
+/* ── secondary figures ── */
+.ps-grid {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 3px;
+}
+
+.ps-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 3px;
+
+  dt,
+  dd {
+    margin: 0;
+    padding: 14px 8px;
+    background: ps.$ps-green-pale;
+    text-align: center;
+    font-weight: 800;
+  }
+
+  dt {
+    font-size: 12.5px;
+  }
+
+  dd {
+    font-size: 14px;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.ps-loss {
+  color: ps.$ps-loss;
+}
+
+.ps-term-warn {
+  background: #fff4e0;
+  border-color: #f2c27a;
+}
+
+.ps-mark {
+  margin-inline-start: 6px;
+  font-size: 15px;
+}
+
+.ps-mark-ok {
+  color: #1e6b2c;
+}
+
+.ps-mark-warn {
+  color: #8a4b00;
+}

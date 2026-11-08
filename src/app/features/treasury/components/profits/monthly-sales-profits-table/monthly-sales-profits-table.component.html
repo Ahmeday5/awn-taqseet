@@ -1,0 +1,56 @@
+@let t = table();
+
+<ng-template #cells let-row>
+  @for (col of columns; track col.key) {
+    @let v = value(row, col.key);
+    <td [class.ps-loss]="v < 0" [class.ps-net]="col.net">
+      @if (col.key === 'collectedProfit') {
+        <app-profit-info
+          [label]="v | amountAr"
+          [lines]="collectedLines(row)"
+          heading="تقسيم الأرباح المحصلة"
+        />
+      } @else {
+        {{ v | amountAr }}
+      }
+    </td>
+  }
+</ng-template>
+
+<section aria-labelledby="mspt-title">
+  <h2 id="mspt-title" class="ps-banner">أرباح المبيعات الشهرية</h2>
+
+  <div class="ps-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th scope="col" class="ps-month">الشهر</th>
+          @for (col of columns; track col.key) {
+            <th scope="col" [class.ps-net]="col.net">
+              {{ col.label }}
+              <app-profit-info [field]="col.field" />
+            </th>
+          }
+        </tr>
+      </thead>
+
+      <tbody>
+        @for (row of t.months; track row.month) {
+          <tr [class.ps-current]="row.isCurrentMonth" [attr.aria-current]="row.isCurrentMonth ? 'date' : null">
+            <th scope="row" class="ps-month">{{ row.monthName }}</th>
+            <ng-container *ngTemplateOutlet="cells; context: { $implicit: row }" />
+          </tr>
+        }
+      </tbody>
+
+      @if (t.total; as total) {
+        <tfoot>
+          <tr>
+            <th scope="row" class="ps-month">{{ total.monthName || 'إجمالي أرباح العام' }}</th>
+            <ng-container *ngTemplateOutlet="cells; context: { $implicit: total }" />
+          </tr>
+        </tfoot>
+      }
+    </table>
+  </div>
+</section>

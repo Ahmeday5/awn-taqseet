@@ -73,7 +73,7 @@
 
     <div class="wdp-projection">
       <span class="wdp-projection-label">المتبقي من الأرباح الموزعة:</span>
-      <span class="wdp-projection-val">{{ remainingBalance() | currencyAr: true }}</span>
+      <span class="wdp-projection-val" [style.color]="remainingBalance() < 0 ? 'var(--re)' : null">{{ remainingBalance() | currencyAr: true }}</span>
     </div>
 
     <div class="wdp-note" role="note">

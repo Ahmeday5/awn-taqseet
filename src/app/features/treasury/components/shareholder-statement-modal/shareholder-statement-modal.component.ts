@@ -372,7 +372,7 @@ export class ShareholderStatementModalComponent {
       metrics: [
         { label: 'رأس المال', value: formatPrintCurrency(hero.contributedAmount), emphasis: true },
         { label: 'نسبة الملكية', value: formatPercentAr(hero.ownedPercentage), tone: 'accent' },
-        { label: 'الأرباح المستحقة', value: formatPrintCurrency(hero.accruedProfit), tone: 'positive' },
+        { label: 'الأرباح المستحقة', value: formatPrintCurrency(hero.accruedProfit), tone: hero.accruedProfit < 0 ? 'negative' : 'positive' },
         { label: 'الأرباح الموزعة المتاحة', value: formatPrintCurrency(this.distributedProfitBalance()) },
         ...(st ? [{ label: 'إجمالي الأرباح الموزعة', value: formatPrintCurrency(st.totalProfitDistributed) }] : []),
       ],

@@ -243,7 +243,7 @@
           </div>
           <div>
             <span class="cap-projection-label">أرباح متبقية:</span>
-            <span class="cap-projection-val">{{ remainingProfit() | currencyAr: true }}</span>
+            <span class="cap-projection-val" [style.color]="remainingProfit() < 0 ? 'var(--re)' : null">{{ remainingProfit() | currencyAr: true }}</span>
           </div>
         </div>
 

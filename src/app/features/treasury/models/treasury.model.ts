@@ -137,16 +137,131 @@ export interface TreasuryOperationsQuery {
 }
 
 /* ════════════════════════════════════════════════════════════════
-   Monthly profits (revenue, expenses, profit analysis)
+   Profits screen — `GET /dashboard/treasuries/monthly-profits`
+   Every profit figure may be negative (loss months, overdrawn
+   balances): render as-is, never clamp.
    ════════════════════════════════════════════════════════════════ */
 
-export interface MonthlyProfit {
+export interface ProfitsScreenQuery {
+  year?: number;
+  /** Admin filter; never sent for a Representative (scoped server-side). */
+  representativeId?: number;
+}
+
+export interface ProfitsScreen {
   year: number;
+  treasuries: ProfitTreasuries;
+  summary: ProfitsSummary;
+  monthlySalesProfits: MonthlyTable<MonthlySalesProfit>;
+  monthlyProfitDistribution: MonthlyTable<MonthlyProfitDistribution>;
+  explanations: ProfitExplanation[];
+}
+
+/** How a figure is computed. `field` is PascalCase, e.g. `NetProfit`. */
+export interface ProfitExplanation {
+  field: string;
+  title: string;
+  formula: string;
+}
+
+export interface ProfitTreasuries {
+  /** Unsettled profits = companyPendingShare + shareholdersPendingShare. */
+  profitsTreasury: number;
+  companyPendingShare: number;
+  shareholdersPendingShare: number;
+  /** What has actually been settled into the company's treasury. */
+  companyProfitsTreasury: number;
+  /** companyProfitsTreasury + companyPendingShare. */
+  companyTotalProfit: number;
+  representativesProfitsTotal: number;
+  representatives: RepresentativeProfit[];
+  shareholders: ShareholderPendingProfit[];
+}
+
+export interface RepresentativeProfit {
+  representativeId: number;
+  representativeName: string;
+  amount: number;
+}
+
+export interface ShareholderPendingProfit {
+  shareholderId: number;
+  shareholderName: string;
+  accruedProfit: number;
+  /** 0–100 scale. */
+  companyPercentage: number;
+  companyShare: number;
+  shareholderShare: number;
+}
+
+export interface ProfitsSummary {
+  totalProfits: number;
+  distributedProfits: number;
+  currentProfits: number;
+  collectedProfits: number;
+  directRevenues: number;
+  expenses: number;
+  /** collectedProfits + directRevenues − expenses. */
+  netProfits: number;
+}
+
+export interface MonthlyTable<T> {
+  /** Always 12 months. */
+  months: T[];
+  /** Yearly total row (`month = 0`). */
+  total: T | null;
+}
+
+export interface MonthlySalesProfit {
   month: number;
   monthName: string;
-  revenue: number;
-  expenses: number;
-  profit: number;
-  marginPercent: number;
   isCurrentMonth: boolean;
+  cashProfit: number;
+  installmentProfit: number;
+  salesProfit: number;
+  collectedProfit: number;
+  collectedFromInstallments: number;
+  collectedFromCashSales: number;
+  directRevenues: number;
+  expenses: number;
+  netProfit: number;
+}
+
+export interface MonthlyProfitDistribution {
+  month: number;
+  monthName: string;
+  isCurrentMonth: boolean;
+  netProfit: number;
+  /** companyProfit + shareholdersProfit + representativesProfit (= netProfit). */
+  distributedProfit: number;
+  /** netProfit − representativesProfit. */
+  shareholdersPool: number;
+  companyProfit: number;
+  shareholdersProfit: number;
+  representativesProfit: number;
+  representatives: RepresentativeMonthlyProfit[];
+  shareholders: ShareholderMonthlyProfit[];
+}
+
+export interface RepresentativeMonthlyProfit {
+  representativeId: number;
+  representativeName: string;
+  /** fromContracts + fromRevenues − fromExpenses. */
+  amount: number;
+  fromContracts: number;
+  fromRevenues: number;
+  /** Subtracted from the total. */
+  fromExpenses: number;
+}
+
+export interface ShareholderMonthlyProfit {
+  shareholderId: number;
+  shareholderName: string;
+  /** Share of paid-in capital, 0–100. */
+  contributionPercentage: number;
+  poolShare: number;
+  /** 0–100 scale. */
+  companyPercentage: number;
+  companyShare: number;
+  shareholderShare: number;
 }

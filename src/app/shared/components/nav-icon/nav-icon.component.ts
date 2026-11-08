@@ -16,6 +16,7 @@ export type NavIconName =
   | 'user-cog'
   | 'clipboard'
   | 'chart'
+  | 'trending-up'
   | 'file-pdf'
   | 'tag'
   | 'receipt'
@@ -108,6 +109,10 @@ export type NavIconName =
           <rect x="6" y="4" width="12" height="17" rx="2" />
           <rect x="9" y="2.5" width="6" height="3" rx="1" fill="currentColor" stroke="none" />
           <path d="M9 11h6M9 14h6M9 17h4" />
+        }
+        @case ('trending-up') {
+          <path d="M3 17l6-6 4 4 8-8" />
+          <path d="M15 6h6v6" />
         }
         @case ('chart') {
           <path d="M3 21h18" />

@@ -10,6 +10,13 @@ export const treasuryRoutes: Routes = [
       ),
   },
   {
+    path: 'monthly-profits',
+    loadComponent: () =>
+      import('./pages/monthly-profits/monthly-profits.component').then(
+        (m) => m.MonthlyProfitsComponent
+      ),
+  },
+  {
     // Off-limits to Representatives even if the backend grants them
     // Treasury.View — shareholders is owners-only.
     path: 'shareholders',

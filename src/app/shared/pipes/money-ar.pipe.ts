@@ -1,5 +1,6 @@
 import { Pipe, PipeTransform } from '@angular/core';
 import {
+  formatAmountAr,
   formatMoneyAr,
   formatNumberAr,
   formatPercentAr,
@@ -10,6 +11,14 @@ import {
 export class MoneyArPipe implements PipeTransform {
   transform(value: number | null | undefined): string {
     return formatMoneyAr(value);
+  }
+}
+
+/** Like `moneyAr` without the currency suffix — for dense money grids. */
+@Pipe({ name: 'amountAr', standalone: true })
+export class AmountArPipe implements PipeTransform {
+  transform(value: number | null | undefined): string {
+    return formatAmountAr(value);
   }
 }
 

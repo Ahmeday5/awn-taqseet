@@ -9,7 +9,8 @@ import {
   TreasuryTransfersQuery,
   TreasuryOperation,
   TreasuryOperationsQuery,
-  MonthlyProfit,
+  ProfitsScreen,
+  ProfitsScreenQuery,
 } from '../models/treasury.model';
 import { PagedResponse } from '../../../core/models/api-response.model';
 import { ApiService } from '../../../core/services/api.service';
@@ -172,23 +173,23 @@ export class TreasuryService {
     };
   }
 
-  // ─────────────── monthly profits ───────────────
+  // ─────────────── profits screen ───────────────
 
-  listMonthlyProfits(year?: number): Observable<MonthlyProfit[]> {
-    return this.api
-      .get<unknown>(API_ENDPOINTS.treasuries.monthlyProfits, {
-        params: year ? { year } : {},
-        context: withCache({ ttlMs: TREASURY_TTL_MS }),
-      })
-      .pipe(toList<MonthlyProfit>());
-  }
-
-  refreshMonthlyProfits(year?: number): Observable<MonthlyProfit[]> {
-    return this.api
-      .get<unknown>(API_ENDPOINTS.treasuries.monthlyProfits, {
-        params: year ? { year } : {},
-        context: withCacheBypass(withCache({ ttlMs: TREASURY_TTL_MS })),
-      })
-      .pipe(toList<MonthlyProfit>());
+  /**
+   * Whole profits screen in one payload. Errors are left to the caller
+   * (inline error state + retry), so the global toast/loader are skipped.
+   */
+  profitsScreen(
+    query: ProfitsScreenQuery = {},
+    bypassCache = false,
+  ): Observable<ProfitsScreen> {
+    const cache = withCache({ ttlMs: TREASURY_TTL_MS }, withInlineHandling());
+    return this.api.get<ProfitsScreen>(API_ENDPOINTS.treasuries.monthlyProfits, {
+      params: {
+        year: query.year || undefined,
+        representativeId: query.representativeId ?? undefined,
+      },
+      context: bypassCache ? withCacheBypass(cache) : cache,
+    });
   }
 }

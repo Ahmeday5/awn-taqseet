@@ -1,0 +1,76 @@
+@let r = row();
+
+<ng-template #amt let-v>
+  <span class="md-num" [class.md-loss]="v < 0">{{ v | amountAr }}</span>
+</ng-template>
+
+<p class="md-story">
+  صافي الربح <ng-container *ngTemplateOutlet="amt; context: { $implicit: r.netProfit }" />
+  − أرباح المناديب <ng-container *ngTemplateOutlet="amt; context: { $implicit: r.representativesProfit }" />
+  = ربح المساهمين <ng-container *ngTemplateOutlet="amt; context: { $implicit: r.shareholdersPool }" />،
+  اتقسم: حصة الشركة <ng-container *ngTemplateOutlet="amt; context: { $implicit: r.companyProfit }" />
+  وحصة المساهمين <ng-container *ngTemplateOutlet="amt; context: { $implicit: r.shareholdersProfit }" />
+</p>
+
+<!-- ── (أ) representatives ── -->
+<section class="md-section" aria-labelledby="md-reps-title">
+  <h3 id="md-reps-title" class="md-heading">
+    أرباح المناديب
+    <app-profit-info field="RepresentativesProfit" />
+  </h3>
+
+  @if (reps().length) {
+    <div class="md-scroll">
+      <table class="md-table">
+        <thead>
+          <tr>
+            <th scope="col" class="md-name">المندوب</th>
+            <th scope="col">عمولة العقود</th>
+            <th scope="col"><span class="md-op">+</span> من الإيرادات</th>
+            <th scope="col"><span class="md-op">−</span> من المصروفات</th>
+            <th scope="col" class="md-strong"><span class="md-op">=</span> الإجمالي</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (rep of reps(); track rep.representativeId) {
+            <tr>
+              <th scope="row" class="md-name">{{ rep.representativeName }}</th>
+              <td><ng-container *ngTemplateOutlet="amt; context: { $implicit: rep.fromContracts }" /></td>
+              <td><ng-container *ngTemplateOutlet="amt; context: { $implicit: rep.fromRevenues }" /></td>
+              <td><ng-container *ngTemplateOutlet="amt; context: { $implicit: rep.fromExpenses }" /></td>
+              <td class="md-strong"><ng-container *ngTemplateOutlet="amt; context: { $implicit: rep.amount }" /></td>
+            </tr>
+          }
+        </tbody>
+        @if (reps().length > 1) {
+          <tfoot>
+            <tr>
+              <th scope="row" class="md-name">الإجمالي</th>
+              <td><ng-container *ngTemplateOutlet="amt; context: { $implicit: repTotals().fromContracts }" /></td>
+              <td><ng-container *ngTemplateOutlet="amt; context: { $implicit: repTotals().fromRevenues }" /></td>
+              <td><ng-container *ngTemplateOutlet="amt; context: { $implicit: repTotals().fromExpenses }" /></td>
+              <td class="md-strong">
+                <ng-container *ngTemplateOutlet="amt; context: { $implicit: r.representativesProfit }" />
+              </td>
+            </tr>
+          </tfoot>
+        }
+      </table>
+    </div>
+  } @else {
+    <p class="md-empty">لا توجد أرباح مناديب في هذه الفترة.</p>
+  }
+</section>
+
+<!-- ── (ب) shareholders ── -->
+<section class="md-section" aria-labelledby="md-sh-title">
+  <h3 id="md-sh-title" class="md-heading">
+    توزيع ربح المساهمين
+    <app-profit-info field="ShareholdersPool" />
+  </h3>
+  <app-profit-shareholders-table
+    [rows]="r.shareholders"
+    [columns]="shareholderColumns"
+    [totals]="shareholderTotals()"
+  />
+</section>

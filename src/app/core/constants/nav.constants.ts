@@ -135,6 +135,14 @@ export const NAV_SECTIONS: NavSection[] = [
         requiredAnyPermission: [PERMISSIONS.treasuryView],
       },
       {
+        id: 'monthly-profits',
+        label: 'شاشة الأرباح',
+        route: '/treasury/monthly-profits',
+        icon: 'trending-up',
+        // Representatives see it too — the backend scopes them to their own data.
+        requiredAnyPermission: [PERMISSIONS.treasuryView],
+      },
+      {
         id: 'vouchers',
         label: 'سندات القبض والصرف',
         route: '/vouchers',

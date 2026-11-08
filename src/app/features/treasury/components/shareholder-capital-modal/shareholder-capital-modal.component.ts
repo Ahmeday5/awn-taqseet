@@ -230,8 +230,9 @@ export class ShareholderCapitalModalComponent {
     () => this.draftCapAmount() > this.availableProfit() + 1e-9,
   );
 
-  protected readonly remainingProfit = computed(() =>
-    Math.max(0, this.availableProfit() - this.draftCapAmount()),
+  /** Not clamped — a negative remainder is shown as-is (in red). */
+  protected readonly remainingProfit = computed(
+    () => this.availableProfit() - this.draftCapAmount(),
   );
 
   /** Portion of the draft capitalisation amount that actually lands in the shareholder's capital. */

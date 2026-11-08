@@ -19,9 +19,18 @@
       </div>
       <div class="cps-sc cps-sc-bal">
         <div class="cps-sc-label">الرصيد الحالي</div>
-        <div class="cps-sc-val">{{ st.currentBalance | currencyAr: true }}</div>
+        <div class="cps-sc-val" [class.cps-neg]="st.currentBalance < 0">{{ st.currentBalance | currencyAr: true }}</div>
       </div>
     </div>
+
+    @let diff = unexplainedDifference();
+    @if (diff !== null) {
+      <div class="alert alert-warning cps-diff-warning" role="alert">
+        <span aria-hidden="true">⚠️</span>
+        يوجد فرق غير مفسر في رصيد الخزنة:
+        <strong class="cps-diff-amount">{{ diff | moneyAr }}</strong>
+      </div>
+    }
   }
 
   <!-- ── DATE FILTER ── -->
@@ -85,30 +94,37 @@
           <th class="cps-w-date">التاريخ</th>
           <th class="cps-w-type">النوع</th>
           <th class="cps-w-ref">المرجع</th>
-          <th>المساهم</th>
+          <th>المساهم / الخزنة</th>
           <th class="cps-w-amount">المبلغ</th>
           <th class="cps-w-amount">الرصيد بعد</th>
           <th>ملاحظات</th>
         </tr>
       </thead>
       <tbody>
-        @for (e of entries(); track e.id) {
-          <tr>
+        <!-- Key on source+id: a voucher id and a treasury-movement id can collide. -->
+        @for (row of rows(); track row.key) {
+          @let e = row.entry;
+          <tr [class.cps-transfer-row]="row.isTransfer">
             <td class="cps-date">{{ e.date | dateAr: 'short' }}</td>
             <td>
-              <app-badge [text]="voucherLabel(e.voucherType)" [type]="voucherBadge(e.voucherType)" />
+              <app-badge [text]="row.voucherLabel" [type]="row.voucherBadge" />
             </td>
             <td>
-              <app-badge [text]="refLabel(e.referenceType)" [type]="refBadge(e.referenceType)" />
+              @if (row.isTransfer) {
+                <!-- Transfer ids are treasury movements, not vouchers — no voucher link. -->
+                <span class="cps-ref-transfer">
+                  <app-badge [text]="transferBadge.text" [type]="transferBadge.type" />
+                  <span>{{ row.referenceLabel }}</span>
+                </span>
+              } @else {
+                <app-badge [text]="row.referenceLabel" [type]="row.referenceBadge" />
+              }
             </td>
-            <td class="cps-shareholder">{{ e.shareholderName || '—' }}</td>
-            <td
-              class="cps-amount"
-              [style.color]="isInflow(e.voucherType) ? 'var(--gr)' : 'var(--re,#c0392b)'"
-            >
-              {{ isInflow(e.voucherType) ? '+' : '−' }}{{ e.amount | currencyAr: true }}
+            <td class="cps-shareholder" [class.cps-treasury]="row.isTransfer">{{ row.counterparty }}</td>
+            <td class="cps-amount" [class.cps-in]="row.inflow" [class.cps-out]="!row.inflow">
+              {{ row.inflow ? '+' : '−' }}{{ e.amount | currencyAr: true }}
             </td>
-            <td style="color:var(--bl);font-weight:700">
+            <td class="cps-balance" [class.cps-neg]="e.balanceAfter < 0">
               {{ e.balanceAfter | currencyAr: true }}
             </td>
             <td class="cps-notes" [title]="e.notes ?? ''">{{ e.notes || '—' }}</td>

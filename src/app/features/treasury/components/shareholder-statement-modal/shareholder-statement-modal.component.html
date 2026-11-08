@@ -39,7 +39,7 @@
         </div>
         <div class="shst-hero-stat">
           <div class="shst-hs-label">مستحق</div>
-          <div class="shst-hs-val shst-te">{{ hero.accruedProfit | currencyAr: true }}</div>
+          <div class="shst-hs-val shst-te" [style.color]="hero.accruedProfit < 0 ? 'var(--re)' : null">{{ hero.accruedProfit | currencyAr: true }}</div>
         </div>
       </div>
     </section>
@@ -87,7 +87,7 @@
       </div>
       <div class="shst-sc shst-sc-acc">
         <div class="shst-sc-label">أرباح مستحقة</div>
-        <div class="shst-sc-val">{{ st.accruedProfit | currencyAr: true }}</div>
+        <div class="shst-sc-val" [style.color]="st.accruedProfit < 0 ? 'var(--re)' : null">{{ st.accruedProfit | currencyAr: true }}</div>
       </div>
     </div>
   }

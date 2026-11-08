@@ -1,0 +1,83 @@
+<!-- ── Toolbar: filters + refresh ── -->
+<div class="pf-toolbar">
+  <label class="pf-field">
+    <span class="pf-label">السنة</span>
+    <select class="pf-select" [ngModel]="year()" (ngModelChange)="onYearChange($event)">
+      @for (y of yearOptions; track y) {
+        <option [ngValue]="y">{{ y }}</option>
+      }
+    </select>
+  </label>
+
+  @if (!isRepresentative()) {
+    <div class="pf-field pf-field-rep">
+      <span class="pf-label">المندوب</span>
+      <app-searchable-select
+        [ngModel]="representativeId()"
+        (ngModelChange)="onRepresentativeChange($event)"
+        [options]="repOptions()"
+        [isDisabled]="repOptionsLoading()"
+        placeholder="كل المناديب"
+        searchPlaceholder="ابحث باسم المندوب…"
+      />
+    </div>
+  }
+
+  <button
+    type="button"
+    class="btn btn-sm d-inline-flex align-items-center gap-1 pf-refresh"
+    [disabled]="loading()"
+    (click)="reload()"
+  >
+    @if (loading()) {
+      <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+    }
+    <span>تحديث</span>
+  </button>
+</div>
+
+<div class="pf-sheet">
+  <h1 class="pf-title">شاشة الأرباح</h1>
+
+  @let s = screen();
+  @if (loading() && !s) {
+    <div class="pf-sk pf-sk-treasuries" aria-hidden="true"></div>
+    <div class="pf-sk pf-sk-summary" aria-hidden="true"></div>
+    <div class="pf-sk pf-sk-table" aria-hidden="true"></div>
+    <div class="pf-sk pf-sk-table" aria-hidden="true"></div>
+    <span class="visually-hidden" role="status">جاري تحميل الأرباح...</span>
+  } @else if (errorMessage()) {
+    <div class="pf-error" role="alert">
+      <div class="pf-error-text">{{ errorMessage() }}</div>
+      <button type="button" class="btn btn-sm btn-bl" (click)="reload()">إعادة المحاولة</button>
+    </div>
+  } @else if (s) {
+    <div class="pf-body" [class.pf-stale]="loading()" [attr.aria-busy]="loading()">
+      <app-profit-treasuries-card
+        [treasuries]="s.treasuries"
+        [showCompanyFigures]="showCompanyFigures()"
+      />
+      <app-profits-summary-card [summary]="s.summary" [showCompanyFigures]="showCompanyFigures()" />
+      <app-monthly-sales-profits-table [table]="s.monthlySalesProfits" />
+      <app-monthly-profit-distribution-table
+        [table]="s.monthlyProfitDistribution"
+        [representatives]="s.treasuries.representatives"
+        [showCompanyFigures]="showCompanyFigures()"
+      />
+
+      @if (explanations.all().length) {
+        <details class="pf-glossary">
+          <summary>كيف تُحسب الأرقام؟</summary>
+          <dl>
+            @for (e of explanations.all(); track e.field) {
+              <div class="pf-glossary-item">
+                <dt>{{ e.title }}</dt>
+                <dd>{{ e.formula }}</dd>
+              </div>
+            }
+          </dl>
+        </details>
+      }
+    </div>
+  }
+</div>

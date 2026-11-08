@@ -36,10 +36,30 @@ function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value);
 }
 
+/**
+ * Two-decimal figure with the sign kept. Values that round to zero are
+ * printed unsigned so `-0.001` never shows as "−٠٫٠٠". Intl prefixes
+ * negatives with an Arabic Letter Mark, so the minus stays on the
+ * reading-start side inside RTL text.
+ */
+function formatSigned2dp(value: number): string {
+  return MONEY_FORMAT.format(Math.abs(value) < 0.005 ? 0 : value);
+}
+
 /** `1234.5` → `١٬٢٣٤٫٥٠ ج.م` · negatives keep their sign. */
 export function formatMoneyAr(value: number | null | undefined): string {
   if (!isFiniteNumber(value)) return EMPTY;
-  return `${MONEY_FORMAT.format(value)} ${environment.currency}`;
+  return `${formatSigned2dp(value)} ${environment.currency}`;
+}
+
+/**
+ * Same as `formatMoneyAr` without the currency suffix — for dense report
+ * grids where every cell is money. `-1234.5` → `؜-١٬٢٣٤٫٥٠`.
+ * Never clamps: a negative profit IS the information.
+ */
+export function formatAmountAr(value: number | null | undefined): string {
+  if (!isFiniteNumber(value)) return EMPTY;
+  return formatSigned2dp(value);
 }
 
 /** `1234` → `١٬٢٣٤` */

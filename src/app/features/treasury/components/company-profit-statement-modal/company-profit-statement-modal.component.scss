@@ -97,3 +97,55 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+// ── unexplained balance difference ──
+
+.cps-diff-warning {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 14px;
+  padding: 10px 14px;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.cps-diff-amount {
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+// ── transfer lines (treasury movements, not vouchers) ──
+
+.cps-transfer-row td {
+  background: var(--bl-l);
+}
+
+.cps-ref-transfer {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.cps-treasury {
+  color: var(--bl);
+  font-weight: 600;
+}
+
+.cps-in  { color: var(--gr); }
+.cps-out { color: var(--re, #c0392b); }
+
+.cps-balance {
+  color: var(--bl);
+  font-weight: 700;
+}
+
+.cps-neg,
+.cps-sc-val.cps-neg {
+  color: var(--re, #c0392b);
+}

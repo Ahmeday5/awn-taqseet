@@ -61,7 +61,7 @@
   </div>
   <div class="sc">
     <div class="sc-l">الأرباح المستحقة (الصفحة)</div>
-    <div class="sc-v sh-stat-te">{{ pageAccruedProfit() | currencyAr: true }}</div>
+    <div class="sc-v sh-stat-te" [style.color]="pageAccruedProfit() < 0 ? 'var(--re)' : null">{{ pageAccruedProfit() | currencyAr: true }}</div>
   </div>
   <div class="sc">
     <div class="sc-l">نسبة الملكية (الصفحة)</div>
@@ -158,7 +158,7 @@
             </div>
           </td>
           <td class="sh-profit">{{ s.totalProfitReceived | currencyAr: true }}</td>
-          <td class="sh-profit">{{ s.accruedProfit | currencyAr: true }}</td>
+          <td class="sh-profit" [style.color]="s.accruedProfit < 0 ? 'var(--re)' : null">{{ s.accruedProfit | currencyAr: true }}</td>
           <td class="sh-treasury">{{ s.capitalTreasuryName || '—' }}</td>
           <td class="fs-10">{{ s.createdAt | dateAr: 'short' }}</td>
           <td>

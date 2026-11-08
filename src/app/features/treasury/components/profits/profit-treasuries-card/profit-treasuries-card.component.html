@@ -1,0 +1,101 @@
+@let t = treasuries();
+@let reps = t.representatives;
+
+<div class="pt-card" [class.pt-single]="reps.length === 0">
+  <dl class="pt-col">
+    @if (showCompanyFigures()) {
+      <!-- خزنة الأرباح -->
+      <div class="pt-group">
+        <div class="pt-item">
+          <dt>
+            خزنة الأرباح
+            <app-profit-info field="ProfitsTreasury" />
+          </dt>
+          <dd [class.pt-loss]="t.profitsTreasury < 0">{{ t.profitsTreasury | amountAr }}</dd>
+        </div>
+        <div class="pt-item pt-sub">
+          <dt>
+            حصة الشركة
+            <app-profit-info field="CompanyPendingShare" />
+          </dt>
+          <dd [class.pt-loss]="t.companyPendingShare < 0">{{ t.companyPendingShare | amountAr }}</dd>
+        </div>
+        <div class="pt-item pt-sub">
+          <dt>
+            حصة المساهمين
+            <app-profit-info field="ShareholdersPendingShare" />
+          </dt>
+          <dd [class.pt-loss]="t.shareholdersPendingShare < 0">
+            {{ t.shareholdersPendingShare | amountAr }}
+          </dd>
+        </div>
+        <button type="button" class="pt-details" (click)="detailsOpen.set(true)">
+          تفاصيل
+          <span class="pt-details-count">({{ t.shareholders.length }} مساهم)</span>
+        </button>
+      </div>
+
+      <!-- خزنة أرباح الشركة -->
+      <div class="pt-group">
+        <div class="pt-item">
+          <dt>
+            خزنة أرباح الشركة
+            <app-profit-info field="CompanyProfitsTreasury" />
+          </dt>
+          <dd [class.pt-loss]="t.companyProfitsTreasury < 0">{{ t.companyProfitsTreasury | amountAr }}</dd>
+        </div>
+      </div>
+
+      <!-- إجمالي أرباح الشركة -->
+      <div class="pt-group">
+        <div class="pt-item">
+          <dt>
+            إجمالي أرباح الشركة
+            <app-profit-info field="CompanyTotalProfit" />
+          </dt>
+          <dd [class.pt-loss]="t.companyTotalProfit < 0">{{ t.companyTotalProfit | amountAr }}</dd>
+        </div>
+        <p class="pt-note">
+          خزنة أرباح الشركة
+          <span class="pt-note-num" [class.pt-loss]="t.companyProfitsTreasury < 0">{{ t.companyProfitsTreasury | amountAr }}</span>
+          + حصة الشركة غير المسواة
+          <span class="pt-note-num" [class.pt-loss]="t.companyPendingShare < 0">{{ t.companyPendingShare | amountAr }}</span>
+        </p>
+      </div>
+    }
+
+    <div class="pt-item">
+      <dt>
+        إجمالي أرباح المناديب
+        <app-profit-info field="RepresentativesProfitsTotal" />
+      </dt>
+      <dd [class.pt-loss]="t.representativesProfitsTotal < 0">
+        {{ t.representativesProfitsTotal | amountAr }}
+      </dd>
+    </div>
+  </dl>
+
+  @if (reps.length) {
+    <dl class="pt-col">
+      @for (rep of reps; track rep.representativeId) {
+        <div class="pt-item">
+          <dt>أرباح المندوب {{ rep.representativeName }}</dt>
+          <dd [class.pt-loss]="rep.amount < 0">{{ rep.amount | amountAr }}</dd>
+        </div>
+      }
+    </dl>
+  }
+</div>
+
+@if (showCompanyFigures()) {
+  <app-modal
+    [open]="detailsOpen()"
+    title="تفاصيل خزنة الأرباح — الأرباح المستحقة للمساهمين"
+    size="xl"
+    (closed)="detailsOpen.set(false)"
+  >
+    @if (detailsOpen()) {
+      <app-profit-shareholders-table [rows]="t.shareholders" [columns]="shareholderColumns" />
+    }
+  </app-modal>
+}
