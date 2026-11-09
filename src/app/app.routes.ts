@@ -136,6 +136,21 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'sub-accounts',
+        canActivate: [
+          accessGuard({
+            anyPermission: [
+              PERMISSIONS.subAccountsView,
+              PERMISSIONS.subAccountsFullAccess,
+            ],
+          }),
+        ],
+        loadChildren: () =>
+          import('./features/sub-accounts/sub-accounts.routes').then(
+            (m) => m.subAccountsRoutes,
+          ),
+      },
+      {
         path: 'vouchers',
         canActivate: [permissionGuard(PERMISSIONS.treasuryView)],
         loadChildren: () =>

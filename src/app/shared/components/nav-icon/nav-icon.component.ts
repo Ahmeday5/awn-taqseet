@@ -11,6 +11,7 @@ export type NavIconName =
   | 'products'
   | 'warning'
   | 'wallet'
+  | 'layers'
   | 'hand-coin'
   | 'whatsapp'
   | 'user-cog'
@@ -90,6 +91,11 @@ export type NavIconName =
           <path d="M3 7a2 2 0 0 1 2-2h12v3" />
           <path d="M3 7v11a2 2 0 0 0 2 2h15V8H5a2 2 0 0 1-2-1z" />
           <circle cx="17" cy="14" r="1.3" fill="currentColor" />
+        }
+        @case ('layers') {
+          <path d="M12 3l9 5-9 5-9-5 9-5z" />
+          <path d="M3 13l9 5 9-5" />
+          <path d="M3 17.5l9 5 9-5" />
         }
         @case ('hand-coin') {
           <circle cx="15" cy="7" r="3.5" />

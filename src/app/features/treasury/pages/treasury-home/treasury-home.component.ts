@@ -19,7 +19,6 @@ import { RepresentativeSubTreasury } from '../../../reps/models/rep.model';
 import { LookupItem } from '../../../../core/models/lookup.model';
 import { TreasuryFormModelComponent } from '../../components/treasury-form-model/treasury-form-model.component';
 import { TreasuryTransferModalComponent } from '../../components/treasury-transfer-modal/treasury-transfer-modal.component';
-import { SubAccountsPanelComponent } from '../../components/sub-accounts-panel/sub-accounts-panel.component';
 import {
   BadgeComponent,
   BadgeType,
@@ -52,7 +51,6 @@ import { CommonModule } from '@angular/common';
   imports: [
     TreasuryFormModelComponent,
     TreasuryTransferModalComponent,
-    SubAccountsPanelComponent,
     BadgeComponent,
     PaginationComponent,
     CurrencyArPipe,
@@ -77,14 +75,6 @@ export class TreasuryHomeComponent implements OnInit {
 
   protected readonly isRep = computed(
     () => this.auth.currentUser()?.role === 'Representative',
-  );
-
-  /** Sub-accounts panel is visible to anyone with SubAccounts.View or SubAccounts.FullAccess. */
-  protected readonly canManageSubAccounts = computed(() =>
-    this.auth.hasAnyPermission([
-      PERMISSIONS.subAccountsView,
-      PERMISSIONS.subAccountsFullAccess,
-    ]),
   );
 
   // ── data ──

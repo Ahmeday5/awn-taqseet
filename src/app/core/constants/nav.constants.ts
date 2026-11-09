@@ -135,6 +135,16 @@ export const NAV_SECTIONS: NavSection[] = [
         requiredAnyPermission: [PERMISSIONS.treasuryView],
       },
       {
+        id: 'sub-accounts',
+        label: 'الحسابات الفرعية',
+        route: '/sub-accounts',
+        icon: 'layers',
+        requiredAnyPermission: [
+          PERMISSIONS.subAccountsView,
+          PERMISSIONS.subAccountsFullAccess,
+        ],
+      },
+      {
         id: 'monthly-profits',
         label: 'شاشة الأرباح',
         route: '/treasury/monthly-profits',

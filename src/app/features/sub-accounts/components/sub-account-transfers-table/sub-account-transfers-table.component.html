@@ -1,11 +1,11 @@
-<app-modal
-  [open]="open()"
-  title="سجل التحويلات بين الحسابات الفرعية"
-  size="xl"
-  [closeOnBackdrop]="!loading()"
-  [closeOnEsc]="!loading()"
-  (closed)="close()"
->
+<div class="card">
+  <div class="chdr trf-head">
+    <div>
+      <div class="ct">سجل التحويلات</div>
+      <div class="trf-sub">كل التحويلات المسجلة بين الحسابات الفرعية</div>
+    </div>
+  </div>
+
   <!-- ── FILTERS ── -->
   <div class="sav-filters">
     <label class="sav-field">
@@ -145,8 +145,4 @@
       (pageSizeChange)="onPageSizeChange($event)"
     />
   }
-
-  <ng-container modal-footer>
-    <button type="button" class="btn" (click)="close()">إغلاق</button>
-  </ng-container>
-</app-modal>
+</div>

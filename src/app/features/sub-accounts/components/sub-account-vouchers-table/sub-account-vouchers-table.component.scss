@@ -39,3 +39,16 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* Card header helpers (local copies of the treasury ones). */
+.trf-head {
+  align-items: flex-start;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.trf-sub {
+  font-size: 10.5px;
+  color: var(--txt3);
+  margin-top: 2px;
+}

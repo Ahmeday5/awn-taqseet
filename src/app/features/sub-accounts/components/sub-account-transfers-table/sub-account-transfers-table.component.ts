@@ -4,13 +4,10 @@ import {
   computed,
   effect,
   inject,
-  input,
   signal,
-  output,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
-import { ModalComponent } from '../../../../shared/components/modal/modal.component';
 import { PaginationComponent } from '../../../../shared/components/pagination/pagination.component';
 import {
   SearchableSelectComponent,
@@ -21,7 +18,9 @@ import { DateArPipe } from '../../../../shared/pipes/date-ar.pipe';
 import { ApiError } from '../../../../core/models/api-response.model';
 import { PrintService } from '../../../../core/services/print.service';
 import { ToastService } from '../../../../core/services/toast.service';
+import { HttpCacheService } from '../../../../core/services/http-cache.service';
 import { fetchAllPages } from '../../../../core/utils/api-list.util';
+import { onInvalidate } from '../../../../core/utils/auto-refresh.util';
 
 import { SubAccountsService } from '../../services/sub-accounts.service';
 import { SubAccountTransfer } from '../../models/sub-account.model';
@@ -30,41 +29,31 @@ const DEFAULT_PAGE_SIZE = 10;
 const REFETCH_DEBOUNCE_MS = 250;
 
 /**
- * The full transfer log between sub-accounts, with a from-account filter,
- * a to-account filter and a date range. Read-only reporting surface —
- * creation happens from `app-sub-account-transfer-modal`.
- *
- * The account dropdowns can be pre-seeded via [accounts] so they don't
- * refetch; if omitted, the modal drains the account list itself on first open.
+ * Transfers-log table on the sub-accounts page, with from/to account filters
+ * and a date range. Read-only — creation happens from the accounts table via
+ * `app-sub-account-transfer-modal`. Refetches on any `sub-account` cache
+ * invalidation.
  */
 @Component({
-  selector: 'app-sub-account-transfers-modal',
+  selector: 'app-sub-account-transfers-table',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     FormsModule,
-    ModalComponent,
     PaginationComponent,
     SearchableSelectComponent,
     CurrencyArPipe,
     DateArPipe,
   ],
-  templateUrl: './sub-account-transfers-modal.component.html',
-  styleUrl: './sub-account-transfers-modal.component.scss',
+  templateUrl: './sub-account-transfers-table.component.html',
+  styleUrl: './sub-account-transfers-table.component.scss',
 })
-export class SubAccountTransfersModalComponent {
-  // ── inputs ──
-  readonly open = input.required<boolean>();
-  /** Pre-seeded account options for the filters — `{ value, label, hint }`. */
-  readonly accounts = input<SearchableSelectOption[]>([]);
-
-  // ── outputs ──
-  readonly closed = output<void>();
-
+export class SubAccountTransfersTableComponent {
   // ── deps ──
   private readonly service = inject(SubAccountsService);
   private readonly printer = inject(PrintService);
   private readonly toast = inject(ToastService);
+  private readonly cache = inject(HttpCacheService);
 
   // ── data ──
   protected readonly transfers = signal<SubAccountTransfer[]>([]);
@@ -109,10 +98,9 @@ export class SubAccountTransfersModalComponent {
   private debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
-    // Refetch on open + on any filter / page change (debounced). The fetch is
-    // deferred so its signal writes run outside this effect's reactive context.
+    // Refetch on any filter / page change (debounced). The fetch is deferred
+    // so its signal writes run outside this effect's reactive context.
     effect(() => {
-      if (!this.open()) return;
       const trigger = this.trigger();
       if (this.debounceTimer) clearTimeout(this.debounceTimer);
       this.debounceTimer = setTimeout(
@@ -121,31 +109,17 @@ export class SubAccountTransfersModalComponent {
       );
     });
 
-    // Mirror seeded accounts into the local option signal, and drain the full
-    // list the first time the modal opens if nothing was provided.
-    effect(
-      () => {
-        const seeded = this.accounts();
-        if (seeded.length) this.accountOptions.set(seeded);
-      },
-      { allowSignalWrites: true },
-    );
+    // Any sub-account write (new transfer, account rename…) refreshes the log
+    // and the account filter options.
+    onInvalidate(this.cache, 'sub-account', () => {
+      this.refresh();
+      this.loadAccounts();
+    });
 
-    effect(
-      () => {
-        if (this.open() && this.accountOptions().length === 0) {
-          this.loadAccounts();
-        }
-      },
-      { allowSignalWrites: true },
-    );
+    this.loadAccounts();
   }
 
   // ─────────── template handlers ───────────
-
-  protected close(): void {
-    this.closed.emit();
-  }
 
   protected refresh(): void {
     this.fetch(this.trigger(), true);

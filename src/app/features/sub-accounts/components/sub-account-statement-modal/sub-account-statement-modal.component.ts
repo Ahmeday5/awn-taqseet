@@ -34,7 +34,7 @@ import {
   VOUCHER_TYPE_LABELS,
 } from '../../../vouchers/constants/voucher-labels';
 
-import { TreasuryService } from '../../services/treasury.service';
+import { TreasuryService } from '../../../treasury/services/treasury.service';
 import { SubAccountsService } from '../../services/sub-accounts.service';
 import {
   SubAccount,

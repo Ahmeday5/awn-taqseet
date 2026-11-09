@@ -4,8 +4,6 @@ import {
   computed,
   effect,
   inject,
-  input,
-  output,
   signal,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -23,7 +21,9 @@ import { ApiError } from '../../../../core/models/api-response.model';
 import { DialogService } from '../../../../core/services/dialog.service';
 import { PrintService } from '../../../../core/services/print.service';
 import { ToastService } from '../../../../core/services/toast.service';
+import { HttpCacheService } from '../../../../core/services/http-cache.service';
 import { fetchAllPages } from '../../../../core/utils/api-list.util';
+import { onInvalidate } from '../../../../core/utils/auto-refresh.util';
 
 import { VoucherType } from '../../../vouchers/enums/voucher.enums';
 import {
@@ -32,7 +32,7 @@ import {
   VOUCHER_TYPE_OPTIONS,
 } from '../../../vouchers/constants/voucher-labels';
 
-import { TreasuryService } from '../../services/treasury.service';
+import { TreasuryService } from '../../../treasury/services/treasury.service';
 import { SubAccountsService } from '../../services/sub-accounts.service';
 import {
   SubAccountVoucher,
@@ -44,15 +44,14 @@ const DEFAULT_PAGE_SIZE = 10;
 const REFETCH_DEBOUNCE_MS = 250;
 
 /**
- * The full receipt/payment log across every sub-account, with server-side
- * search (name / voucher number), a type filter and a per-account filter.
- * Read-only reporting surface — creation happens from the panel rows.
- *
- * The account dropdown can be pre-seeded via [accounts] so it doesn't refetch;
- * if omitted, the modal drains the account list itself on first open.
+ * Vouchers table on the sub-accounts page — the full receipt/payment log
+ * across every sub-account, with server-side search (name / voucher number),
+ * a type filter and a per-account filter. Creation happens from the accounts
+ * table rows; edit/delete happen here. Refetches on any `sub-account` cache
+ * invalidation so it stays in sync with the other two tables.
  */
 @Component({
-  selector: 'app-sub-account-vouchers-modal',
+  selector: 'app-sub-account-vouchers-table',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
@@ -64,24 +63,17 @@ const REFETCH_DEBOUNCE_MS = 250;
     CurrencyArPipe,
     DateArPipe,
   ],
-  templateUrl: './sub-account-vouchers-modal.component.html',
-  styleUrl: './sub-account-vouchers-modal.component.scss',
+  templateUrl: './sub-account-vouchers-table.component.html',
+  styleUrl: './sub-account-vouchers-table.component.scss',
 })
-export class SubAccountVouchersModalComponent {
-  // ── inputs ──
-  readonly open = input.required<boolean>();
-  /** Pre-seeded account options for the filter — `{ value, label, hint }`. */
-  readonly accounts = input<SearchableSelectOption[]>([]);
-
-  // ── outputs ──
-  readonly closed = output<void>();
-
+export class SubAccountVouchersTableComponent {
   // ── deps ──
   private readonly service = inject(SubAccountsService);
   private readonly treasuryService = inject(TreasuryService);
   private readonly printer = inject(PrintService);
   private readonly toast = inject(ToastService);
   private readonly dialog = inject(DialogService);
+  private readonly cache = inject(HttpCacheService);
 
   // ── option tables ──
   protected readonly typeOptions = VOUCHER_TYPE_OPTIONS;
@@ -137,10 +129,9 @@ export class SubAccountVouchersModalComponent {
   private debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
-    // Refetch on open + on any filter / page change (debounced). The fetch is
-    // deferred so its signal writes run outside this effect's reactive context.
+    // Refetch on any filter / page change (debounced). The fetch is deferred
+    // so its signal writes run outside this effect's reactive context.
     effect(() => {
-      if (!this.open()) return;
       const trigger = this.trigger();
       if (this.debounceTimer) clearTimeout(this.debounceTimer);
       this.debounceTimer = setTimeout(
@@ -149,43 +140,22 @@ export class SubAccountVouchersModalComponent {
       );
     });
 
-    // Mirror seeded accounts into the local option signal, and drain the full
-    // list the first time the modal opens if nothing was provided.
-    effect(
-      () => {
-        const seeded = this.accounts();
-        if (seeded.length) this.accountOptions.set(seeded);
-      },
-      { allowSignalWrites: true },
-    );
+    // Any sub-account write (new voucher, transfer, account edit…) refreshes
+    // the log and the account filter options.
+    onInvalidate(this.cache, 'sub-account', () => {
+      this.refresh();
+      this.loadAccounts();
+    });
 
-    effect(
-      () => {
-        if (this.open() && this.accountOptions().length === 0) {
-          this.loadAccounts();
-        }
-      },
-      { allowSignalWrites: true },
-    );
+    this.loadAccounts();
 
-    // Load treasuries once for the edit-voucher form.
-    effect(
-      () => {
-        if (!this.open() || this.treasuries().length > 0) return;
-        this.treasuryService.lookup().subscribe({
-          next: (list) => this.treasuries.set(list),
-          error: () => {},
-        });
-      },
-      { allowSignalWrites: true },
-    );
+    this.treasuryService.lookup().subscribe({
+      next: (list) => this.treasuries.set(list),
+      error: () => {},
+    });
   }
 
   // ─────────── template handlers ───────────
-
-  protected close(): void {
-    this.closed.emit();
-  }
 
   protected refresh(): void {
     this.fetch(this.trigger(), true);
@@ -304,7 +274,6 @@ export class SubAccountVouchersModalComponent {
         this.editVoucherOpen.set(false);
         this.editVoucherTarget.set(null);
         this.toast.success('تم تعديل السند بنجاح');
-        this.fetch(this.trigger(), true);
       },
       error: (err: ApiError) => {
         this.editVoucherSubmitting.set(false);
@@ -334,7 +303,6 @@ export class SubAccountVouchersModalComponent {
       next: () => {
         this.deletingId.set(null);
         this.toast.success('تم حذف السند بنجاح');
-        this.fetch(this.trigger(), true);
       },
       error: (err: ApiError) => {
         this.deletingId.set(null);

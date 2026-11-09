@@ -18,7 +18,7 @@ import { fetchAllPages } from '../../../../core/utils/api-list.util';
 import { ApiError } from '../../../../core/models/api-response.model';
 
 import { SubAccountsService } from '../../services/sub-accounts.service';
-import { TreasuryService } from '../../services/treasury.service';
+import { TreasuryService } from '../../../treasury/services/treasury.service';
 import { RepsService } from '../../../reps/services/reps.service';
 import {
   SubAccount,
@@ -30,24 +30,19 @@ import { SearchableSelectOption } from '../../../../shared/components/searchable
 import { SubAccountFormModalComponent } from '../sub-account-form-modal/sub-account-form-modal.component';
 import { SubAccountVoucherModalComponent } from '../sub-account-voucher-modal/sub-account-voucher-modal.component';
 import { SubAccountStatementModalComponent } from '../sub-account-statement-modal/sub-account-statement-modal.component';
-import { SubAccountVouchersModalComponent } from '../sub-account-vouchers-modal/sub-account-vouchers-modal.component';
 import { SubAccountTransferModalComponent } from '../sub-account-transfer-modal/sub-account-transfer-modal.component';
-import { SubAccountTransfersModalComponent } from '../sub-account-transfers-modal/sub-account-transfers-modal.component';
 
 const DEFAULT_PAGE_SIZE = 10;
 const REFETCH_DEBOUNCE_MS = 250;
 
 /**
- * Self-contained management surface for treasury sub-accounts — a single card
- * rendered on the treasury home, gated to
- * Admin / GeneralManager by the host.
- *
- * Owns the paginated list and all four child dialogs (create/edit, add
- * voucher, per-account statement, all-vouchers log), so the host only has to
- * drop `<app-sub-accounts-panel />` into the grid.
+ * Accounts table on the sub-accounts page. Owns the paginated list plus the
+ * per-account dialogs (create/edit, add voucher, statement) and the
+ * account-to-account transfer dialog. The vouchers log and transfers log live
+ * in their own tables on the same page.
  */
 @Component({
-  selector: 'app-sub-accounts-panel',
+  selector: 'app-sub-accounts-table',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
@@ -56,14 +51,12 @@ const REFETCH_DEBOUNCE_MS = 250;
     SubAccountFormModalComponent,
     SubAccountVoucherModalComponent,
     SubAccountStatementModalComponent,
-    SubAccountVouchersModalComponent,
     SubAccountTransferModalComponent,
-    SubAccountTransfersModalComponent,
   ],
-  templateUrl: './sub-accounts-panel.component.html',
-  styleUrl: './sub-accounts-panel.component.scss',
+  templateUrl: './sub-accounts-table.component.html',
+  styleUrl: './sub-accounts-table.component.scss',
 })
-export class SubAccountsPanelComponent {
+export class SubAccountsTableComponent {
   private readonly service = inject(SubAccountsService);
   private readonly treasuryService = inject(TreasuryService);
   private readonly repsService = inject(RepsService);
@@ -102,15 +95,9 @@ export class SubAccountsPanelComponent {
   protected readonly statementOpen = signal(false);
   protected readonly statementAccount = signal<SubAccount | null>(null);
 
-  // ── all-vouchers modal ──
-  protected readonly vouchersOpen = signal(false);
-
   // ── transfer modal ──
   protected readonly transferOpen = signal(false);
   protected readonly accountOptions = signal<SearchableSelectOption[]>([]);
-
-  // ── all-transfers modal ──
-  protected readonly transfersLogOpen = signal(false);
 
   // ── derived ──
   protected readonly hasFilters = computed(() => this.searchTerm().trim().length > 0);
@@ -303,16 +290,6 @@ export class SubAccountsPanelComponent {
     this.statementOpen.set(false);
   }
 
-  // ─────────── all-vouchers modal ───────────
-
-  protected openVouchers(): void {
-    this.vouchersOpen.set(true);
-  }
-
-  protected closeVouchers(): void {
-    this.vouchersOpen.set(false);
-  }
-
   // ─────────── transfer modal ───────────
 
   protected openTransfer(): void {
@@ -346,15 +323,5 @@ export class SubAccountsPanelComponent {
         ),
       error: () => this.accountOptions.set([]),
     });
-  }
-
-  // ─────────── all-transfers modal ───────────
-
-  protected openTransfersLog(): void {
-    this.transfersLogOpen.set(true);
-  }
-
-  protected closeTransfersLog(): void {
-    this.transfersLogOpen.set(false);
   }
 }

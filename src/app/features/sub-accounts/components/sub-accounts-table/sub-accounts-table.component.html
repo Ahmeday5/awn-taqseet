@@ -1,26 +1,10 @@
 <div class="card h-100">
   <div class="chdr trf-head">
     <div>
-      <div class="ct">الحسابات الفرعية</div>
-      <div class="trf-sub">حسابات نقدية مستقلة داخل الخزينة مع سندات قبض وصرف وكشف حساب</div>
+      <div class="ct">الحسابات</div>
+      <div class="trf-sub">حسابات نقدية مستقلة مع سندات قبض وصرف وكشف حساب</div>
     </div>
     <div class="d-flex gap-1 flex-wrap">
-      <button
-        type="button"
-        class="btn btn-sm d-inline-flex align-items-center gap-1"
-        (click)="openVouchers()"
-        title="عرض كل سندات الحسابات الفرعية"
-      >
-        📑 كل السندات
-      </button>
-      <button
-        type="button"
-        class="btn btn-sm d-inline-flex align-items-center gap-1"
-        (click)="openTransfersLog()"
-        title="عرض سجل التحويلات بين الحسابات الفرعية"
-      >
-        🔁 سجل التحويلات
-      </button>
       <button
         type="button"
         class="btn btn-sm d-inline-flex align-items-center gap-1"
@@ -171,20 +155,9 @@
   (closed)="closeStatement()"
 />
 
-<app-sub-account-vouchers-modal
-  [open]="vouchersOpen()"
-  (closed)="closeVouchers()"
-/>
-
 <app-sub-account-transfer-modal
   [open]="transferOpen()"
   [accounts]="accountOptions()"
   (closed)="closeTransfer()"
   (saved)="onTransferSaved($event)"
-/>
-
-<app-sub-account-transfers-modal
-  [open]="transfersLogOpen()"
-  [accounts]="accountOptions()"
-  (closed)="closeTransfersLog()"
 />
