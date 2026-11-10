@@ -22,7 +22,11 @@ export const API_ENDPOINTS = {
     base: 'dashboard/treasuries',
     byId: (id: number) => `dashboard/treasuries/${id}`,
     transfers: 'dashboard/treasuries/transfers',
+    /** PUT edit / DELETE (reverses the balances) a single inter-treasury transfer. */
+    transferById: (id: number) => `dashboard/treasuries/transfers/${id}`,
     operations: 'dashboard/treasuries/operations',
+    /** PUT edit / DELETE (reverses the balance effect) a single manual operation. */
+    operationById: (id: number) => `dashboard/treasuries/operations/${id}`,
     monthlyProfits: 'dashboard/treasuries/monthly-profits',
     /** Lightweight `{id,name}` list for pickers (role-scoped server-side). */
     lookup: 'dashboard/treasuries/lookup',
@@ -40,6 +44,8 @@ export const API_ENDPOINTS = {
     statement: (id: number) => `dashboard/sub-accounts/${id}/statement`,
     /** GET (paged) / POST: money movements between two sub-accounts. */
     transfers: 'dashboard/sub-accounts/transfers',
+    /** PUT edit / DELETE (reverses the balances) a single sub-account transfer. */
+    transferById: (id: number) => `dashboard/sub-accounts/transfers/${id}`,
   },
   shareholders: {
     base: 'dashboard/shareholders',
@@ -159,11 +165,12 @@ export const API_ENDPOINTS = {
      */
     pay: 'installments/pay',
     /**
-     * POST: cancels a paid OR partially-paid installment and reverts it to
-     * unpaid — dashboard-scoped endpoint (no status restriction server-side).
+     * PUT edit / DELETE a single installment payment voucher. The backend
+     * re-applies every remaining payment to the installments oldest-first,
+     * so callers must refetch the contract details afterwards.
      */
-    cancelPayment: (id: number) =>
-      `dashboard/installments/${id}/cancel-payment`,
+    paymentById: (voucherId: number) =>
+      `dashboard/installments/payments/${voucherId}`,
   },
   clientOrders: {
     base: 'dashboard/client-orders',

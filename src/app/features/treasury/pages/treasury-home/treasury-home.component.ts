@@ -19,6 +19,7 @@ import { RepresentativeSubTreasury } from '../../../reps/models/rep.model';
 import { LookupItem } from '../../../../core/models/lookup.model';
 import { TreasuryFormModelComponent } from '../../components/treasury-form-model/treasury-form-model.component';
 import { TreasuryTransferModalComponent } from '../../components/treasury-transfer-modal/treasury-transfer-modal.component';
+import { TreasuryOperationModalComponent } from '../../components/treasury-operation-modal/treasury-operation-modal.component';
 import {
   BadgeComponent,
   BadgeType,
@@ -36,12 +37,20 @@ import { AuthService } from '../../../../core/services/auth.service';
 import { PrintService } from '../../../../core/services/print.service';
 import { onInvalidate } from '../../../../core/utils/auto-refresh.util';
 import { fetchAllPages } from '../../../../core/utils/api-list.util';
+import { formatCairoDateTime } from '../../../../shared/utils/date-iso.util';
 import { ApiError } from '../../../../core/models/api-response.model';
+import { resolveApiMessage } from '../../../../core/constants/api-messages.const';
 import { TreasuryType } from '../../enums/treasury-type.enum';
 import {
   TREASURY_TYPE_BADGE,
   TREASURY_TYPE_LABELS,
 } from '../../constants/treasury-type-labels';
+import {
+  OPERATION_LOCKED_HINT,
+  OPERATION_PARTY_BADGE,
+  OPERATION_PARTY_LABELS,
+  operationMutationError,
+} from '../../constants/operation-party-labels';
 import { CommonModule } from '@angular/common';
 
 @Component({
@@ -51,6 +60,7 @@ import { CommonModule } from '@angular/common';
   imports: [
     TreasuryFormModelComponent,
     TreasuryTransferModalComponent,
+    TreasuryOperationModalComponent,
     BadgeComponent,
     PaginationComponent,
     CurrencyArPipe,
@@ -104,6 +114,9 @@ export class TreasuryHomeComponent implements OnInit {
   protected readonly transfers = signal<TreasuryTransfer[]>([]);
   protected readonly transfersLoading = signal(false);
   protected readonly transferModalOpen = signal(false);
+  /** Transfer being edited in the modal; `null` = create. */
+  protected readonly editingTransfer = signal<TreasuryTransfer | null>(null);
+  protected readonly deletingTransferId = signal<number | null>(null);
 
   // transfer filters
   protected readonly tFromFilter = signal<number | ''>('');
@@ -217,6 +230,10 @@ export class TreasuryHomeComponent implements OnInit {
   /** Set while we fetch the full dataset for a print export. */
   protected readonly isPrintingOps = signal(false);
   private operationsDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Operation open in the edit modal; `null` = closed. */
+  protected readonly editingOperation = signal<TreasuryOperation | null>(null);
+  protected readonly deletingOperationId = signal<number | null>(null);
+  protected readonly OPERATION_LOCKED_HINT = OPERATION_LOCKED_HINT;
 
   // operations filters
   protected readonly oTreasuryFilter = signal<number | ''>('');
@@ -481,6 +498,12 @@ export class TreasuryHomeComponent implements OnInit {
 
   // transfer modal handlers
   protected openTransfer(): void {
+    this.editingTransfer.set(null);
+    this.transferModalOpen.set(true);
+  }
+
+  protected openEditTransfer(transfer: TreasuryTransfer): void {
+    this.editingTransfer.set(transfer);
     this.transferModalOpen.set(true);
   }
 
@@ -491,7 +514,35 @@ export class TreasuryHomeComponent implements OnInit {
   protected onTransferSaved(_: TreasuryTransfer): void {
     this.transferModalOpen.set(false);
     // Cache invalidation in the service already triggers `onInvalidate`,
-    // which re-fetches treasuries AND transfers — no manual refresh needed.
+    // which re-fetches treasuries, operations AND transfers.
+  }
+
+  protected async confirmDeleteTransfer(t: TreasuryTransfer): Promise<void> {
+    if (this.deletingTransferId() !== null) return;
+    const ok = await this.dialog.confirm({
+      title: 'حذف تحويل',
+      message: `هل أنت متأكد من حذف هذا التحويل؟ سيتم إرجاع المبلغ (${t.amount.toLocaleString('ar-EG')} ج.م) من «${t.toTreasuryName}» إلى «${t.fromTreasuryName}».`,
+      confirmText: 'حذف',
+      cancelText: 'إلغاء',
+      type: 'danger',
+    });
+    if (!ok) return;
+
+    this.deletingTransferId.set(t.id);
+    this.treasuryService.deleteTransfer(t.id).subscribe({
+      next: (res) => {
+        this.deletingTransferId.set(null);
+        this.toast.success(resolveApiMessage(res.message, 'تم حذف التحويل بنجاح'));
+        // Invalidation → `onInvalidate` refetches transfers + balances.
+        if (this.transfers().length === 1 && this.tPageIndex() > 1) {
+          this.tPageIndex.update((p) => p - 1);
+        }
+      },
+      error: (err: ApiError) => {
+        this.deletingTransferId.set(null);
+        this.toast.error(err.message);
+      },
+    });
   }
 
   // ─────────────── operations ───────────────
@@ -578,6 +629,62 @@ export class TreasuryHomeComponent implements OnInit {
     return signedAmount >= 0 ? 'trf-amount-positive' : 'trf-amount-negative';
   }
 
+  protected partyLabel(op: TreasuryOperation): string {
+    return op.partyType ? (OPERATION_PARTY_LABELS[op.partyType] ?? op.partyType) : '';
+  }
+
+  protected partyBadge(op: TreasuryOperation): BadgeType {
+    return op.partyType ? (OPERATION_PARTY_BADGE[op.partyType] ?? 'info') : 'info';
+  }
+
+  // operation edit / delete
+  protected openEditOperation(op: TreasuryOperation): void {
+    this.editingOperation.set(op);
+  }
+
+  protected closeEditOperation(): void {
+    this.editingOperation.set(null);
+  }
+
+  protected onOperationSaved(): void {
+    this.editingOperation.set(null);
+    // Cache invalidation → `onInvalidate` refetches operations + balances.
+  }
+
+  protected onOperationGone(): void {
+    this.editingOperation.set(null);
+    this.refreshOperations();
+  }
+
+  protected async confirmDeleteOperation(op: TreasuryOperation): Promise<void> {
+    if (this.deletingOperationId() !== null) return;
+    const ok = await this.dialog.confirm({
+      title: 'حذف عملية',
+      message: 'هل أنت متأكد من حذف هذه العملية؟ سيتم عكس أثرها على رصيد الخزنة.',
+      confirmText: 'حذف',
+      cancelText: 'إلغاء',
+      type: 'danger',
+    });
+    if (!ok) return;
+
+    this.deletingOperationId.set(op.id);
+    this.treasuryService.deleteOperation(op.id).subscribe({
+      next: (res) => {
+        this.deletingOperationId.set(null);
+        this.toast.success(resolveApiMessage(res.message, 'تم حذف العملية بنجاح'));
+        // Invalidation → `onInvalidate` refetches operations + balances.
+        if (this.operations().length === 1 && this.oPageIndex() > 1) {
+          this.oPageIndex.update((p) => p - 1);
+        }
+      },
+      error: (err: ApiError) => {
+        this.deletingOperationId.set(null);
+        this.toast.error(operationMutationError(err));
+        if (err.status === 404) this.refreshOperations();
+      },
+    });
+  }
+
   protected readonly todayDate = new Date();
 
   /** Background flags for the export-PDF buttons. */
@@ -625,6 +732,12 @@ export class TreasuryHomeComponent implements OnInit {
               align: 'center',
               format: (v) => (v === 'Receipt' ? 'إيراد' : 'صرف'),
             },
+            {
+              key: 'partyName',
+              header: 'الجهة',
+              align: 'start',
+              format: (v) => (v as string | null) || '—',
+            },
             { key: 'description', header: 'الوصف', align: 'start' },
             {
               key: 'signedAmount',
@@ -644,7 +757,7 @@ export class TreasuryHomeComponent implements OnInit {
               key: 'date',
               header: 'التاريخ',
               align: 'center',
-              format: 'shortDate',
+              format: (v) => formatCairoDateTime(v as string),
             },
           ],
           rows,

@@ -108,6 +108,7 @@ export class DirectContractModalComponent {
 
   protected readonly frequencies: { value: ContractPaymentFrequency; label: string }[] = [
     { value: 'Monthly', label: 'شهري' },
+    { value: 'Bimonthly', label: 'كل شهرين' },
     { value: 'Quarterly', label: 'ربع سنوي' },
     { value: 'SemiAnnual', label: 'نصف سنوي' },
   ];
@@ -193,6 +194,13 @@ export class DirectContractModalComponent {
       this.loadDetails(id);
     }, { allowSignalWrites: true });
 
+    // Creating a direct contract always starts from a supplier invoice — jump
+    // straight to that step instead of making the operator open it manually.
+    effect(() => {
+      if (!this.open() || this.editId() !== null) return;
+      this.invoiceModalOpen.set(true);
+    }, { allowSignalWrites: true });
+
     this.form.get('isCustomInstallmentAmount')?.valueChanges.subscribe((custom) => {
       this.syncInstallmentControlState(custom);
     });
@@ -214,7 +222,7 @@ export class DirectContractModalComponent {
     });
   }
 
-  /** Line total for a single product row: cost × quantity. */
+  /** Item total for a single product row: cost × quantity. */
   protected itemLineTotal(index: number): number {
     const group = this.itemsArray.at(index);
     const price = Number(group?.get('purchasePrice')?.value ?? 0);

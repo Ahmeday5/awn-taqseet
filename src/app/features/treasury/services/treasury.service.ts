@@ -5,14 +5,19 @@ import {
   CreateTreasuryPayload,
   UpdateTreasuryPayload,
   CreateTreasuryTransferPayload,
+  UpdateTreasuryTransferPayload,
   TreasuryTransfer,
   TreasuryTransfersQuery,
   TreasuryOperation,
   TreasuryOperationsQuery,
+  UpdateTreasuryOperationPayload,
   ProfitsScreen,
   ProfitsScreenQuery,
 } from '../models/treasury.model';
-import { PagedResponse } from '../../../core/models/api-response.model';
+import {
+  ApiResult,
+  PagedResponse,
+} from '../../../core/models/api-response.model';
 import { ApiService } from '../../../core/services/api.service';
 import { API_ENDPOINTS } from '../../../core/constants/api-endpoints.const';
 import {
@@ -26,6 +31,14 @@ import { LookupItem } from '../../../core/models/lookup.model';
 
 const TREASURY_CACHE_KEY = 'treasur';
 const TREASURY_TTL_MS = 15 * 60 * 1000;
+
+/** Transfer/operation edits & deletes move balances — also drop the dashboard balance cards. */
+const BALANCE_INVALIDATE_KEYS = [
+  TREASURY_CACHE_KEY,
+  'financial-separation',
+  'home-summary',
+  'balance-check',
+] as const;
 
 @Injectable({ providedIn: 'root' })
 export class TreasuryService {
@@ -124,6 +137,38 @@ export class TreasuryService {
     );
   }
 
+  /**
+   * Edits a transfer — the server reverses the old legs and re-posts the new
+   * ones, so every balance-bearing view (treasuries, operations, dashboard
+   * cards) is invalidated.
+   */
+  updateTransfer(
+    id: number,
+    payload: UpdateTreasuryTransferPayload,
+  ): Observable<ApiResult<TreasuryTransfer>> {
+    return this.api.putWithMessage<TreasuryTransfer>(
+      API_ENDPOINTS.treasuries.transferById(id),
+      payload,
+      {
+        context: withInlineHandling(
+          withCacheInvalidate(BALANCE_INVALIDATE_KEYS),
+        ),
+      },
+    );
+  }
+
+  /** Deletes a transfer, moving the amount back from target to source. */
+  deleteTransfer(id: number): Observable<ApiResult<unknown>> {
+    return this.api.deleteWithMessage<unknown>(
+      API_ENDPOINTS.treasuries.transferById(id),
+      {
+        context: withInlineHandling(
+          withCacheInvalidate(BALANCE_INVALIDATE_KEYS),
+        ),
+      },
+    );
+  }
+
   private toTransferParams(
     query: TreasuryTransfersQuery,
   ): Record<string, unknown> {
@@ -159,6 +204,34 @@ export class TreasuryService {
         context: withCacheBypass(withCache({ ttlMs: TREASURY_TTL_MS })),
       })
       .pipe(toPaged<TreasuryOperation>());
+  }
+
+  /** Edits a manual operation — the server re-posts its effect on the treasury balance. */
+  updateOperation(
+    id: number,
+    payload: UpdateTreasuryOperationPayload,
+  ): Observable<ApiResult<TreasuryOperation>> {
+    return this.api.putWithMessage<TreasuryOperation>(
+      API_ENDPOINTS.treasuries.operationById(id),
+      payload,
+      {
+        context: withInlineHandling(
+          withCacheInvalidate(BALANCE_INVALIDATE_KEYS),
+        ),
+      },
+    );
+  }
+
+  /** Deletes a manual operation, reversing its effect on the treasury balance. */
+  deleteOperation(id: number): Observable<ApiResult<unknown>> {
+    return this.api.deleteWithMessage<unknown>(
+      API_ENDPOINTS.treasuries.operationById(id),
+      {
+        context: withInlineHandling(
+          withCacheInvalidate(BALANCE_INVALIDATE_KEYS),
+        ),
+      },
+    );
   }
 
   private toOperationsParams(

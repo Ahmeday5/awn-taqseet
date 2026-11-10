@@ -15,7 +15,11 @@ import {
 } from '../../../../shared/components/searchable-select/searchable-select.component';
 import { CurrencyArPipe } from '../../../../shared/pipes/currency-ar.pipe';
 import { DateArPipe } from '../../../../shared/pipes/date-ar.pipe';
+import { HasPermissionDirective } from '../../../../shared/directives/has-permission.directive';
 import { ApiError } from '../../../../core/models/api-response.model';
+import { PERMISSIONS } from '../../../../core/constants/permissions.const';
+import { resolveApiMessage } from '../../../../core/constants/api-messages.const';
+import { DialogService } from '../../../../core/services/dialog.service';
 import { PrintService } from '../../../../core/services/print.service';
 import { ToastService } from '../../../../core/services/toast.service';
 import { HttpCacheService } from '../../../../core/services/http-cache.service';
@@ -24,15 +28,16 @@ import { onInvalidate } from '../../../../core/utils/auto-refresh.util';
 
 import { SubAccountsService } from '../../services/sub-accounts.service';
 import { SubAccountTransfer } from '../../models/sub-account.model';
+import { SubAccountTransferModalComponent } from '../sub-account-transfer-modal/sub-account-transfer-modal.component';
 
 const DEFAULT_PAGE_SIZE = 10;
 const REFETCH_DEBOUNCE_MS = 250;
 
 /**
  * Transfers-log table on the sub-accounts page, with from/to account filters
- * and a date range. Read-only — creation happens from the accounts table via
- * `app-sub-account-transfer-modal`. Refetches on any `sub-account` cache
- * invalidation.
+ * and a date range. Rows can be edited (reusing `app-sub-account-transfer-modal`)
+ * or deleted; creation happens from the accounts table. Refetches on any
+ * `sub-account` cache invalidation.
  */
 @Component({
   selector: 'app-sub-account-transfers-table',
@@ -44,6 +49,8 @@ const REFETCH_DEBOUNCE_MS = 250;
     SearchableSelectComponent,
     CurrencyArPipe,
     DateArPipe,
+    HasPermissionDirective,
+    SubAccountTransferModalComponent,
   ],
   templateUrl: './sub-account-transfers-table.component.html',
   styleUrl: './sub-account-transfers-table.component.scss',
@@ -54,6 +61,14 @@ export class SubAccountTransfersTableComponent {
   private readonly printer = inject(PrintService);
   private readonly toast = inject(ToastService);
   private readonly cache = inject(HttpCacheService);
+  private readonly dialog = inject(DialogService);
+
+  protected readonly PERMS = PERMISSIONS;
+
+  // ── row actions ──
+  protected readonly editOpen = signal(false);
+  protected readonly editingTransfer = signal<SubAccountTransfer | null>(null);
+  protected readonly deletingId = signal<number | null>(null);
 
   // ── data ──
   protected readonly transfers = signal<SubAccountTransfer[]>([]);
@@ -117,6 +132,49 @@ export class SubAccountTransfersTableComponent {
     });
 
     this.loadAccounts();
+  }
+
+  // ─────────── row actions ───────────
+
+  protected openEdit(transfer: SubAccountTransfer): void {
+    this.editingTransfer.set(transfer);
+    this.editOpen.set(true);
+  }
+
+  protected closeEdit(): void {
+    this.editOpen.set(false);
+  }
+
+  protected onEditSaved(): void {
+    // Invalidation in the service drives the refetch via `onInvalidate`.
+    this.editOpen.set(false);
+  }
+
+  protected async confirmDelete(t: SubAccountTransfer): Promise<void> {
+    if (this.deletingId() !== null) return;
+    const ok = await this.dialog.confirm({
+      title: 'حذف تحويل',
+      message: `هل أنت متأكد من حذف هذا التحويل؟ سيتم إرجاع المبلغ (${t.amount.toLocaleString('ar-EG')} ج.م) من «${t.toSubAccountName}» إلى «${t.fromSubAccountName}».`,
+      confirmText: 'حذف',
+      cancelText: 'إلغاء',
+      type: 'danger',
+    });
+    if (!ok) return;
+
+    this.deletingId.set(t.id);
+    this.service.deleteTransfer(t.id).subscribe({
+      next: (res) => {
+        this.deletingId.set(null);
+        this.toast.success(resolveApiMessage(res.message, 'تم حذف التحويل بنجاح'));
+        if (this.transfers().length === 1 && this.pageIndex() > 1) {
+          this.pageIndex.update((p) => p - 1);
+        }
+      },
+      error: (err: ApiError) => {
+        this.deletingId.set(null);
+        this.toast.error(err.message);
+      },
+    });
   }
 
   // ─────────── template handlers ───────────

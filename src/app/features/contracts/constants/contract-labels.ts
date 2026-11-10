@@ -5,6 +5,7 @@ import { PdfTone } from '../../../core/pdf/pdf.models';
 export const PAYMENT_FREQUENCY_LABELS: Readonly<Record<string, string>> = {
   Weekly: 'أسبوعي',
   Monthly: 'شهري',
+  Bimonthly: 'كل شهرين',
   Quarterly: 'ربع سنوي',
   SemiAnnual: 'نصف سنوي',
   SemiAnnually: 'نصف سنوي',
@@ -15,6 +16,7 @@ export const PAYMENT_FREQUENCY_LABELS: Readonly<Record<string, string>> = {
 /** Months between two installments, per payment frequency. */
 export const PAYMENT_FREQUENCY_MONTHS: Readonly<Record<string, number>> = {
   Monthly: 1,
+  Bimonthly: 2,
   Quarterly: 3,
   SemiAnnual: 6,
   SemiAnnually: 6,
