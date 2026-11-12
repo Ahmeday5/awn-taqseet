@@ -308,9 +308,7 @@
     }
     <button type="button" class="btn btn-sm" [disabled]="previewLoading()" (click)="loadPreview()">تحديث</button>
     <button *appHasPermission="PERMS.treasuryFullAccess" type="button" class="btn btn-sm btn-te"
-      [disabled]="!hasPendingProfits()" (click)="openCapitalizeAll()">رسملة الكل</button>
-    <button *appHasPermission="PERMS.treasuryFullAccess" type="button" class="btn btn-sm btn-gr"
-      [disabled]="!hasPendingProfits()" (click)="openDistribute()">توزيع الآن</button>
+      [disabled]="!hasPendingProfits()" (click)="openCapitalizeAll()">ترحيل الى راس المال</button>
   </div>
 </div>
 
