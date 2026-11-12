@@ -21,7 +21,10 @@ export interface ProfitSettlementLine {
   companyShare: number;
   /** Portion of `amount` added to this shareholder's capital treasury. */
   shareholderShare: number;
-  /** Issued only once the settlement is executed — absent/empty in the preview. */
+  /**
+   * Issued only once the settlement is executed — absent/empty in the preview.
+   * Now the shared company-share receipt voucher number (one per settlement).
+   */
   voucherNumber?: string;
 }
 
@@ -61,11 +64,11 @@ export interface ProfitSettlementPreviewQuery {
 }
 
 /**
- * `POST /profit-settlement` body. `treasuryId` is the profits treasury taken
- * from the preview — the user picks the date and an optional note only.
+ * `POST /profit-settlement` body. The user picks the date and an optional
+ * note only — `treasuryId` is ignored by the server (send 0 or omit).
  */
 export interface CreateProfitSettlementPayload {
-  treasuryId: number;
+  treasuryId?: number;
   /** `yyyy-MM-dd` — calendar date, not a timestamp. */
   date: string;
   notes: string;
@@ -83,6 +86,8 @@ export interface ProfitSettlement {
   profitsTreasuryName: string;
   totalAmount: number;
   treasuryBalanceAfter?: number;
+  /** The single receipt voucher booking the company's share into its balance. */
+  companyReceiptVoucherNumber?: string | null;
   notes: string | null;
   lines: ProfitSettlementLine[];
 }

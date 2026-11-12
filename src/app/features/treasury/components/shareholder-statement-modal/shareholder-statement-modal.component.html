@@ -56,6 +56,11 @@
         <div class="shst-sc-label">إجمالي السحوبات</div>
         <div class="shst-sc-val">{{ st.totalCapitalWithdrawn | currencyAr: true }}</div>
       </div>
+      <div class="shst-sc shst-sc-net">
+        <div class="shst-sc-label">صافي رأس المال</div>
+        <div class="shst-sc-val" [style.color]="st.netCapitalBalance < 0 ? 'var(--re)' : null">{{ st.netCapitalBalance | currencyAr: true }}</div>
+        <div class="shst-sc-sub">إيداعات + رسملة − سحوبات</div>
+      </div>
       <div class="shst-sc shst-sc-cap">
         <div class="shst-sc-label">أرباح مرحّلة</div>
         <div class="shst-sc-val">{{ st.totalProfitCapitalized | currencyAr: true }}</div>
@@ -112,6 +117,20 @@
         (change)="toDate.set($any($event.target).value)"
       />
     </div>
+    <div class="shst-filter-group">
+      <label class="shst-filter-label">التصنيف</label>
+      <select
+        class="form-select form-select-sm"
+        [value]="classificationId() ?? ''"
+        [disabled]="loading()"
+        (change)="onClassificationChange($any($event.target).value)"
+      >
+        <option value="">كل التصنيفات</option>
+        @for (c of classifications(); track c.id) {
+          <option [value]="c.id">{{ c.name }}</option>
+        }
+      </select>
+    </div>
     <div class="shst-filter-actions">
       <button
         type="button"
@@ -157,6 +176,7 @@
           <th class="shst-w-amount">نصيب المساهم</th>
           <th class="shst-w-amount">نصيب الشركة</th>
           <th class="shst-w-amount">الرصيد بعد</th>
+          <th>التصنيف</th>
           <th class="shst-w-treasury">الخزينة</th>
           <th>ملاحظات</th>
           @if (canManage()) {
@@ -186,13 +206,14 @@
             <td class="shst-amount" style="color:var(--txt3)">
               {{ e.companyShare != null ? (e.companyShare | currencyAr: true) : '—' }}
             </td>
-            <td style="color:var(--bl);font-weight:700">
+            <td style="font-weight:700" [style.color]="e.capitalBalanceAfter < 0 ? 'var(--re)' : 'var(--bl)'">
               @if (affectsCapital(e.transactionType)) {
                 {{ e.capitalBalanceAfter | currencyAr: true }}
               } @else {
                 <span style="color:var(--txt3);font-weight:400">—</span>
               }
             </td>
+            <td class="shst-treasury">{{ e.capitalClassificationName || '—' }}</td>
             <td class="shst-treasury">{{ e.treasuryName || '—' }}</td>
             <td class="shst-notes" [title]="e.notes ?? ''">{{ e.notes || '—' }}</td>
             @if (canManage()) {
@@ -216,7 +237,7 @@
           </tr>
         } @empty {
           <tr>
-            <td [attr.colspan]="canManage() ? 10 : 9" class="text-center py-4" style="color:var(--txt3);font-size:12px">
+            <td [attr.colspan]="canManage() ? 11 : 10" class="text-center py-4" style="color:var(--txt3);font-size:12px">
               @if (loading()) {
                 جاري التحميل...
               } @else if (hasFilters()) {

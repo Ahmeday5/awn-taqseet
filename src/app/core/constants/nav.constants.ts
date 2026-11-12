@@ -176,6 +176,17 @@ export const NAV_SECTIONS: NavSection[] = [
         hideForRoles: ['Representative'],
       },
       {
+        id: 'capital-classifications',
+        label: 'تصنيفات رأس المال',
+        route: '/treasury/shareholders/classifications',
+        icon: 'tag',
+        requiredAnyPermission: [
+          PERMISSIONS.shareholdersView,
+          PERMISSIONS.shareholdersFullAccess,
+        ],
+        hideForRoles: ['Representative'],
+      },
+      {
         id: 'balance-check',
         label: 'ميزان المراجعة',
         route: '/balance-check',
@@ -195,6 +206,13 @@ export const NAV_SECTIONS: NavSection[] = [
         route: '/users',
         icon: 'user-cog',
         requiredAnyPermission: [PERMISSIONS.userManagement],
+      },
+      {
+        id: 'settings',
+        label: 'الإعدادات',
+        route: '/settings',
+        icon: 'user-cog',
+        requiredAnyRole: ['Admin'],
       },
     ],
   },

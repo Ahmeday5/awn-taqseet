@@ -49,8 +49,18 @@ import {
   OPERATION_LOCKED_HINT,
   OPERATION_PARTY_BADGE,
   OPERATION_PARTY_LABELS,
+  OPERATION_REFERENCE_BADGE,
+  OPERATION_REFERENCE_LABELS,
   operationMutationError,
 } from '../../constants/operation-party-labels';
+import { decodeJwt } from '../../../../core/utils/jwt.util';
+
+/**
+ * JWT claim names that may carry the signed-in representative's id. The
+ * backend doesn't document one today — if none is present we fall back to
+ * treating every shared treasury as view-only for representatives.
+ */
+const REP_ID_CLAIMS = ['representativeId', 'RepresentativeId', 'repId', 'RepId'] as const;
 import { CommonModule } from '@angular/common';
 
 @Component({
@@ -86,6 +96,22 @@ export class TreasuryHomeComponent implements OnInit {
   protected readonly isRep = computed(
     () => this.auth.currentUser()?.role === 'Representative',
   );
+
+  /**
+   * Current representative's id, read best-effort from the access token.
+   * `null` when the user isn't a rep or the token carries no such claim.
+   */
+  private readonly myRepresentativeId = computed<number | null>(() => {
+    if (!this.isRep()) return null;
+    const token = this.auth.getAccessToken();
+    const payload = token ? decodeJwt(token) : null;
+    if (!payload) return null;
+    for (const claim of REP_ID_CLAIMS) {
+      const id = Number(payload[claim]);
+      if (payload[claim] != null && Number.isFinite(id) && id > 0) return id;
+    }
+    return null;
+  });
 
   // ── data ──
   protected readonly treasuries = signal<Treasury[]>([]);
@@ -423,6 +449,24 @@ export class TreasuryHomeComponent implements OnInit {
     return TREASURY_TYPE_BADGE[type] ?? 'info';
   }
 
+  /**
+   * A representative sees their own treasuries plus ones shared with all
+   * reps. Shared treasuries they don't own are view-only. Without a known
+   * rep id, every shared treasury is treated as not theirs.
+   */
+  protected canActOnTreasury(t: Treasury): boolean {
+    if (!this.isRep() || !t.sharedWithAllRepresentatives) return true;
+    const myId = this.myRepresentativeId();
+    return myId != null && t.representativeId === myId;
+  }
+
+  /** Same rule for operation rows — resolved through the loaded treasury list. */
+  protected canActOnTreasuryId(treasuryId: number): boolean {
+    if (!this.isRep()) return true;
+    const t = this.treasuries().find((x) => x.id === treasuryId);
+    return t ? this.canActOnTreasury(t) : true;
+  }
+
   // ─────────────── transfers ───────────────
 
   private fetchTransfers(
@@ -635,6 +679,14 @@ export class TreasuryHomeComponent implements OnInit {
 
   protected partyBadge(op: TreasuryOperation): BadgeType {
     return op.partyType ? (OPERATION_PARTY_BADGE[op.partyType] ?? 'info') : 'info';
+  }
+
+  protected referenceLabel(op: TreasuryOperation): string | null {
+    return OPERATION_REFERENCE_LABELS[op.referenceType] ?? null;
+  }
+
+  protected referenceBadge(op: TreasuryOperation): BadgeType {
+    return OPERATION_REFERENCE_BADGE[op.referenceType] ?? 'info';
   }
 
   // operation edit / delete

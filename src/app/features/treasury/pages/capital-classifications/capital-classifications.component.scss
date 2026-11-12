@@ -1,0 +1,49 @@
+.cc-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 11px;
+}
+
+.cc-search {
+  display: inline-flex;
+  gap: 4px;
+  flex: 1;
+  min-width: 200px;
+  max-width: 360px;
+}
+
+.cc-count {
+  font-size: 11px;
+  color: var(--txt3);
+  margin-inline-start: auto;
+}
+
+.cc-back,
+.cc-link {
+  color: var(--bl);
+  text-decoration: none;
+
+  &:hover { text-decoration: underline; }
+}
+
+.cc-notes {
+  max-width: 320px;
+  font-size: 11px;
+  color: var(--txt2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cc-empty {
+  text-align: center;
+  padding: 28px 18px;
+  color: var(--txt3);
+  font-size: 12px;
+}
+
+.fw-600 { font-weight: 600; }
+.fs-10  { font-size: 10px; }
+.mb-0   { margin-bottom: 0 !important; }

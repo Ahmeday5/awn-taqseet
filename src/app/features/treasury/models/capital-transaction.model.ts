@@ -25,6 +25,8 @@ export interface CapitalTransaction {
   treasuryName: string;
   notes: string | null;
   userName: string;
+  capitalClassificationId: number | null;
+  capitalClassificationName: string | null;
 }
 
 export interface CreateCapitalTransactionPayload {
@@ -34,9 +36,15 @@ export interface CreateCapitalTransactionPayload {
   /** `yyyy-MM-dd` — calendar date, not a timestamp. */
   date: string;
   notes: string;
+  /** Optional capital classification (تصنيف رأس المال). */
+  capitalClassificationId: number | null;
 }
 
-/** PUT /shareholders/{id}/capital-transactions/{txId} — edits a deposit/withdrawal in place. */
+/**
+ * PUT /shareholders/{id}/capital-transactions/{txId} — edits a deposit/withdrawal
+ * in place. `capitalClassificationId` must always carry the current value:
+ * null CLEARS the classification server-side.
+ */
 export interface UpdateCapitalTransactionPayload {
   type: CapitalTransactionType;
   amount: number;
@@ -44,10 +52,12 @@ export interface UpdateCapitalTransactionPayload {
   /** `yyyy-MM-dd` — calendar date, not a timestamp. */
   date: string;
   notes: string;
+  capitalClassificationId: number | null;
 }
 
 export interface CapitalizeProfitPayload {
-  profitsTreasuryId: number;
+  /** Ignored by the server now — send 0 or omit. */
+  profitsTreasuryId?: number;
   amount: number;
   /** `yyyy-MM-dd` — calendar date, not a timestamp. */
   date: string;
@@ -101,14 +111,27 @@ export interface ReinvestAllDistributedProfitsResult {
 
 /** POST /shareholders/capitalize-all-profits — rolls every shareholder's AccruedProfit into capital. */
 export interface CapitalizeAllProfitsPayload {
-  profitsTreasuryId: number;
+  /** Ignored by the server now — send 0 or omit. */
+  profitsTreasuryId?: number;
   /** `yyyy-MM-dd` — calendar date, not a timestamp. */
   date: string;
   notes: string;
+}
+
+/**
+ * Response of the capitalise endpoints. `companyReceiptVoucherNumber` is the
+ * single receipt voucher booking the company's share; `paymentVoucherNumber`
+ * on lines is always empty now.
+ */
+export interface CapitalizeProfitsResult {
+  companyReceiptVoucherNumber?: string | null;
+  [key: string]: unknown;
 }
 
 /** Query parameters for the paginated capital-transactions history. */
 export interface CapitalTransactionsQuery {
   pageIndex?: number;
   pageSize?: number;
+  /** Optional filter by capital classification. */
+  classificationId?: number | null;
 }

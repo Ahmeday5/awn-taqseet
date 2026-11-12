@@ -101,7 +101,15 @@ export class CustomersListComponent {
   // ── delete ──
   protected readonly deletingId = signal<number | null>(null);
 
+  // ── activation toggle ── ids with an in-flight toggle request
+  protected readonly togglingIds = signal<ReadonlySet<number>>(new Set());
+
   // ── derived ──
+  /** Inactive (awaiting admin activation) clients on the current page. */
+  protected readonly pendingActivationCount = computed(
+    () => this.clients().filter((c) => c.isActive === false).length,
+  );
+
   protected readonly hasFilters = computed(
     () => this.searchTerm().length > 0 || this.onlyOverdue(),
   );
@@ -356,6 +364,44 @@ export class CustomersListComponent {
         this.deletingId.set(null);
         this.toast.error(apiErrorToMessage(err, 'تعذّر حذف العميل'));
       },
+    });
+  }
+
+  // ─────────── activation ───────────
+
+  protected isToggling(id: number): boolean {
+    return this.togglingIds().has(id);
+  }
+
+  protected toggleActive(client: DashboardClient): void {
+    if (this.isToggling(client.id)) return;
+    this.setToggling(client.id, true);
+
+    this.service.toggleClientActive(client.id).subscribe({
+      next: ({ data, message }) => {
+        this.setToggling(client.id, false);
+        const isActive = data?.isActive ?? !client.isActive;
+        this.clients.update((rows) =>
+          rows.map((r) => (r.id === client.id ? { ...r, isActive } : r)),
+        );
+        this.toast.success(
+          message ||
+            (isActive ? 'تم تفعيل حساب العميل.' : 'تم تعطيل حساب العميل.'),
+        );
+      },
+      error: (err: ApiError) => {
+        this.setToggling(client.id, false);
+        this.toast.error(apiErrorToMessage(err, 'تعذّر تغيير حالة حساب العميل'));
+      },
+    });
+  }
+
+  private setToggling(id: number, on: boolean): void {
+    this.togglingIds.update((set) => {
+      const next = new Set(set);
+      if (on) next.add(id);
+      else next.delete(id);
+      return next;
     });
   }
 

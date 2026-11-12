@@ -19,6 +19,21 @@
         <dt>خزينة الأرباح</dt>
         <dd>{{ s.profitsTreasuryName }}</dd>
       </div>
+      @if (s.companyReceiptVoucherNumber) {
+        <div class="psd-head-item">
+          <dt>سند قبض حصة الشركة</dt>
+          <dd>
+            <button
+              type="button"
+              class="psd-voucher"
+              [title]="s.companyReceiptVoucherNumber + ' — اضغط للنسخ'"
+              (click)="copyVoucher(s.companyReceiptVoucherNumber)"
+            >
+              <span class="cv-ltr">{{ shortVoucher(s.companyReceiptVoucherNumber) }}</span>
+            </button>
+          </dd>
+        </div>
+      }
       <div class="psd-head-item">
         <dt>إجمالي الموزّع</dt>
         <dd class="psd-amount">{{ s.totalAmount | currencyAr: true }}</dd>
@@ -40,7 +55,7 @@
             <th class="text-center">المساهمة</th>
             <th class="text-center">النسبة</th>
             <th class="text-end">المبلغ</th>
-            <th>سند الصرف</th>
+            <th>سند القبض</th>
           </tr>
         </thead>
         <tbody>

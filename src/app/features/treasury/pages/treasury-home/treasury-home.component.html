@@ -14,18 +14,24 @@
   style="background:var(--te);color:#fff;border-radius:var(--rl);padding:16px;margin-bottom:12px">
   <div class="flex-grow-1">
     <div style="font-size:11px;opacity:.8;margin-bottom:3px">الخزينة الرئيسية — مجموع كل الخزائن</div>
-    <div style="font-size:30px;font-weight:700">{{ totalBalance() | currencyAr: true }}</div>
+    <div style="font-size:30px;font-weight:700">
+      <span [class.bal-neg-hero]="totalBalance() < 0">{{ totalBalance() | currencyAr: true }}</span>
+    </div>
 
     <div style="display:flex;flex-wrap:wrap;gap:18px;margin-top:10px">
       <div>
         <div style="font-size:10px;opacity:.7">الرصيد المركزي</div>
-        <div style="font-size:16px;font-weight:700">{{ mainBalance() | currencyAr: true }}</div>
+        <div style="font-size:16px;font-weight:700">
+          <span [class.bal-neg-hero]="mainBalance() < 0">{{ mainBalance() | currencyAr: true }}</span>
+        </div>
       </div>
 
       @for (t of treasuries(); track t.id) {
       <div>
         <div style="font-size:10px;opacity:.7">{{ t.name }}</div>
-        <div style="font-size:16px;font-weight:700">{{ t.currentBalance | currencyAr: true }}</div>
+        <div style="font-size:16px;font-weight:700">
+          <span [class.bal-neg-hero]="t.currentBalance < 0">{{ t.currentBalance | currencyAr: true }}</span>
+        </div>
       </div>
       }
 
@@ -102,9 +108,16 @@
                   }
                 </td>
                 <td>
-                  <app-badge [text]="typeLabel(t.type)" [type]="typeBadge(t.type)" />
+                  <div class="d-flex flex-wrap gap-1">
+                    <app-badge [text]="typeLabel(t.type)" [type]="typeBadge(t.type)" />
+                    @if (t.sharedWithAllRepresentatives) {
+                    <app-badge text="مشتركة" type="purple" />
+                    }
+                  </div>
                 </td>
-                <td style="color:var(--te);font-weight:700">{{ t.currentBalance | currencyAr: true }}</td>
+                <td style="color:var(--te);font-weight:700" [class.bal-neg]="t.currentBalance < 0">
+                  {{ t.currentBalance | currencyAr: true }}
+                </td>
                 <td>
                   @if (t.isActive) {
                   <app-badge text="فعّالة" type="ok" />
@@ -113,6 +126,7 @@
                   }
                 </td>
                 <td class="text-center">
+                  @if (canActOnTreasury(t)) {
                   <div class="d-flex gap-1 justify-content-center" *appHasPermission="PERMS.treasuryFullAccess">
 
                     <button class="btn btn-sm btn-bl d-inline-flex align-items-center gap-1" (click)="openEdit(t)"
@@ -130,6 +144,9 @@
                     </button>
 
                   </div>
+                  } @else {
+                  <span style="color:var(--txt3);font-size:11px" title="خزينة مشتركة — للعرض فقط">عرض فقط</span>
+                  }
                 </td>
               </tr>
               } @empty {
@@ -332,7 +349,7 @@
               <tr>
                 <td style="font-weight:600">{{ s.representativeName }}</td>
                 <td>{{ s.treasuryName }}</td>
-                <td class="trf-amount">{{ s.balance | currencyAr: true }}</td>
+                <td class="trf-amount" [class.bal-neg]="s.balance < 0">{{ s.balance | currencyAr: true }}</td>
                 <td>{{ s.totalSales | currencyAr: true }}</td>
                 <td>{{ s.totalCost | currencyAr: true }}</td>
                 <td style="color:var(--gr);font-weight:600">
@@ -365,7 +382,7 @@
             <tfoot>
               <tr>
                 <td colspan="2" style="font-weight:700">الإجمالي</td>
-                <td class="trf-amount" style="font-weight:700">
+                <td class="trf-amount" style="font-weight:700" [class.bal-neg]="subTreasuriesTotalBalance() < 0">
                   {{ subTreasuriesTotalBalance() | currencyAr: true }}
                 </td>
                 <td style="font-weight:700">
@@ -475,6 +492,8 @@
                     @if (op.partyType) {
                     <app-badge [text]="partyLabel(op)" [type]="partyBadge(op)" />
                     }
+                    } @else if (referenceLabel(op)) {
+                    <app-badge [text]="referenceLabel(op)!" [type]="referenceBadge(op)" />
                     } @else {
                     —
                     }
@@ -486,13 +505,13 @@
                   <td [ngClass]="signedAmountClass(op.signedAmount)">
                     {{ op.signedAmount | currencyAr: true }}
                   </td>
-                  <td style="color:var(--bl);font-weight:700">
+                  <td style="color:var(--bl);font-weight:700" [class.bal-neg]="op.balanceAfter < 0">
                     {{ op.balanceAfter | currencyAr: true }}
                   </td>
                   <td style="font-size:10.5px;color:var(--txt2)">{{ op.userName }}</td>
                   <td class="trf-date">{{ op.date | dateAr: 'dateTime' }}</td>
                   <td *appHasPermission="PERMS.treasuryFullAccess" class="text-center">
-                    @if (op.canEdit || op.canDelete) {
+                    @if ((op.canEdit || op.canDelete) && canActOnTreasuryId(op.treasuryId)) {
                     <div class="d-flex gap-1 justify-content-center">
                       @if (op.canEdit) {
                       <button type="button" class="btn btn-sm btn-bl"

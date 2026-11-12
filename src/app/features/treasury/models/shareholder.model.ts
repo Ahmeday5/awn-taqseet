@@ -17,6 +17,61 @@ export interface Shareholder {
   capitalTreasuryName: string;
   notes: string | null;
   createdAt: string;
+  /**
+   * True only for the synthetic "الشركة" row (id 0) the API prepends on page 1.
+   * Display-only: no edit/delete/statement/capital actions, and it is not
+   * counted in the pagination `count`. Its `contributedAmount` may be negative.
+   */
+  isCompany?: boolean;
+}
+
+/** `GET /dashboard/shareholders/summary` — header cards. */
+export interface ShareholdersSummary {
+  shareholdersCount: number;
+  totalShareholdersCapital: number;
+  /** May be negative. */
+  companyBalance: number;
+  totalIncludingCompany: number;
+}
+
+/** VoucherType on the wire: 1 = Receipt (إيداع), 2 = Payment (سحب). */
+export enum CompanyBalanceTxType {
+  Deposit = 1,
+  Withdrawal = 2,
+}
+
+/** POST/PUT `shareholders/company-balance/transactions[/{voucherId}]` body. */
+export interface CompanyBalanceTransactionPayload {
+  type: CompanyBalanceTxType;
+  amount: number;
+  /** `yyyy-MM-dd` — omitted to let the server default to today. */
+  date?: string;
+  notes?: string;
+}
+
+export interface CompanyBalanceTransaction {
+  id: number;
+  voucherNumber: string;
+  type: CompanyBalanceTxType | string;
+  amount: number;
+  date: string;
+  treasuryId: number;
+  treasuryName: string;
+  /** May be negative — withdrawals are never blocked. */
+  companyBalanceAfter: number;
+  notes: string | null;
+}
+
+/** `POST shareholders/company-balance/reconcile-historical` (Admin, idempotent). */
+export interface ReconcileHistoricalResult {
+  vouchersReversed: number;
+  transactionsRemoved: number;
+  totalRestored: number;
+  treasuries: Array<{
+    treasuryId: number;
+    treasuryName: string;
+    amountRestored: number;
+  }>;
 }
 
 export interface CreateShareholderPayload {

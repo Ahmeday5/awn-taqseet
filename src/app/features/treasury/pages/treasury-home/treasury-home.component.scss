@@ -135,3 +135,17 @@
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
+
+/* ── NEGATIVE BALANCES (treasuries may be overdrawn) ── */
+.bal-neg {
+  color: var(--re) !important;
+}
+
+/* On the teal hero, red text alone is unreadable — give it a light pill. */
+.bal-neg-hero {
+  color: var(--re);
+  background: #fff;
+  border-radius: var(--r, 6px);
+  padding: 0 6px;
+  display: inline-block;
+}

@@ -84,6 +84,25 @@ export const API_ENDPOINTS = {
     companyProfitStatement: 'dashboard/company-profit-statement',
     /** GET: every treasury (incl. profit/representative ones) for the shareholder-area treasury pickers. */
     treasuriesLookup: 'dashboard/shareholders/treasuries-lookup',
+    /** GET: shareholders count + total capital + company balance (header cards). */
+    summary: 'dashboard/shareholders/summary',
+    /** GET (paged) / POST capital classifications (تصنيفات رأس المال). */
+    capitalClassifications: 'dashboard/shareholders/capital-classifications',
+    /** GET / PUT / DELETE a single capital classification. */
+    capitalClassificationById: (id: number) =>
+      `dashboard/shareholders/capital-classifications/${id}`,
+    /** GET (paged): ledger of every capital movement tagged with a classification. */
+    capitalClassificationStatement: (id: number) =>
+      `dashboard/shareholders/capital-classifications/${id}/statement`,
+    /** POST: deposit/withdraw directly against the company's own balance. */
+    companyBalanceTransactions:
+      'dashboard/shareholders/company-balance/transactions',
+    /** PUT edit / DELETE a single company-balance voucher. */
+    companyBalanceTransactionById: (voucherId: number) =>
+      `dashboard/shareholders/company-balance/transactions/${voucherId}`,
+    /** POST (Admin, one-off, idempotent): fold historical profit-treasury drift back into the company balance. */
+    reconcileHistoricalCompanyBalance:
+      'dashboard/shareholders/company-balance/reconcile-historical',
   },
   warehouses: {
     base: 'dashboard/warehouses',
@@ -187,6 +206,8 @@ export const API_ENDPOINTS = {
     contracts: (id: number) => `dashboard/clients/${id}/contracts`,
     /** POST: sets a new password for the client's linked AppUser account. */
     password: (id: number) => `dashboard/clients/${id}/password`,
+    /** PUT (no body): flips the client's `isActive` flag → `{ id, isActive }`. */
+    toggleActive: (id: number) => `dashboard/clients/${id}/toggle-active`,
   },
   inventory: {
     alerts: 'dashboard/inventory/alerts',

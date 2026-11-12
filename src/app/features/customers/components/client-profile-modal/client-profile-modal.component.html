@@ -12,7 +12,16 @@
     <div class="cpm-header">
       <div class="cpm-avatar" aria-hidden="true">{{ initials(p.client.fullName) }}</div>
       <div class="cpm-header-body">
-        <div class="cpm-name">{{ p.client.fullName }}</div>
+        <div class="cpm-name">
+          {{ p.client.fullName }}
+          @if (p.client.isActive !== undefined && p.client.isActive !== null) {
+            <app-badge
+              class="cpm-active-badge"
+              [text]="p.client.isActive ? 'مفعّل' : 'غير مفعّل'"
+              [type]="p.client.isActive ? 'ok' : 'warn'"
+            />
+          }
+        </div>
         @if (p.client.clientCode) {
           <div class="cpm-code">كود العميل: {{ p.client.clientCode }}</div>
         }

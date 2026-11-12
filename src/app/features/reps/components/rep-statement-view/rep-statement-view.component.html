@@ -15,7 +15,7 @@
       </div>
       <div class="rs-head-balance">
         <div class="rs-head-balance-label">رصيد الخزينة</div>
-        <div class="rs-head-balance-val">{{ r.treasuryBalance | currencyAr: true }}</div>
+        <div class="rs-head-balance-val" [style.color]="r.treasuryBalance < 0 ? 'var(--re)' : null">{{ r.treasuryBalance | currencyAr: true }}</div>
       </div>
     </div>
 

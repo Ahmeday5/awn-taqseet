@@ -1,0 +1,63 @@
+.ccs-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 11px;
+  margin-bottom: 13px;
+
+  @media (max-width: 600px) { grid-template-columns: 1fr; }
+}
+
+.ccs-filter {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 11px;
+}
+
+.ccs-filter-label {
+  display: block;
+  font-size: 10.5px;
+  color: var(--txt2);
+  margin-bottom: 2px;
+}
+
+.ccs-link {
+  color: var(--bl);
+  text-decoration: none;
+
+  &:hover { text-decoration: underline; }
+}
+
+.ccs-voucher {
+  direction: ltr;
+  unicode-bidi: isolate;
+  font-family: monospace;
+  font-size: 10px;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ccs-muted { font-size: 10.5px; color: var(--txt2); }
+
+.ccs-notes {
+  max-width: 220px;
+  font-size: 10.5px;
+  color: var(--txt2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ccs-empty {
+  text-align: center;
+  padding: 28px 18px;
+  color: var(--txt3);
+  font-size: 12px;
+}
+
+.fw-600 { font-weight: 600; }
+.fs-10  { font-size: 10px; }
+.mb-0   { margin-bottom: 0 !important; }

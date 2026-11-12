@@ -48,6 +48,16 @@
       </div>
 
       <div class="col-12">
+        <label class="form-label">التصنيف</label>
+        <app-searchable-select
+          formControlName="capitalClassificationId"
+          placeholder="بدون تصنيف (اختياري)"
+          searchPlaceholder="ابحث باسم التصنيف…"
+          [options]="classifications()"
+        />
+      </div>
+
+      <div class="col-12">
         <label class="form-label">ملاحظات</label>
         <textarea class="form-control" rows="2" formControlName="notes"></textarea>
       </div>

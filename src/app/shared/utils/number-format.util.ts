@@ -3,7 +3,7 @@ import { environment } from '../../../environments/environment';
 /**
  * Locale-aware number formatting for accounting views.
  *
- * Unlike `CurrencyArPipe` (rounded, hides zero/negatives — fine for KPI
+ * Unlike `CurrencyArPipe` (rounded, hides zero by default — fine for KPI
  * tiles), these keep two decimals and the sign intact: on a reconciliation
  * screen a ٠٫٠١ difference or a negative balance IS the information.
  *

@@ -24,11 +24,13 @@ const REFERENCE_TYPE_LABELS: Readonly<Record<string, string>> = {
   ProfitDistribution: 'توزيع أرباح',
   TransferIn: 'تحويل وارد',
   TransferOut: 'تحويل صادر',
+  CompanyCapitalAdjustment: 'تعديل رصيد الشركة',
 };
 
 const REFERENCE_TYPE_BADGE: Readonly<Record<string, BadgeType>> = {
   ShareholderProfitCapitalization: 'purple',
   ProfitDistribution: 'teal',
+  CompanyCapitalAdjustment: 'warn',
 };
 
 /** Marks a line that is a treasury transfer, not a voucher. */

@@ -41,7 +41,7 @@
 
       <div class="hs-tile hs-tile--teal">
       <div class="hs-tile-label">الخزينة الرئيسية</div>
-      <div class="hs-tile-value">{{ s.mainTreasury.balance | currencyAr: true }}</div>
+      <div class="hs-tile-value" [style.color]="s.mainTreasury.balance < 0 ? 'var(--re)' : null">{{ s.mainTreasury.balance | currencyAr: true }}</div>
       <div class="hs-tile-meta">الرصيد الحالي</div>
     </div>
 

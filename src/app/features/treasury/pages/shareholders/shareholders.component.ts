@@ -7,9 +7,14 @@ import {
   signal,
 } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
+import { RouterLink } from '@angular/router';
 
 import { ShareholdersService } from '../../services/shareholders.service';
-import { Shareholder } from '../../models/shareholder.model';
+import {
+  CompanyBalanceTxType,
+  Shareholder,
+  ShareholdersSummary,
+} from '../../models/shareholder.model';
 import {
   ProfitSettlement,
   ProfitSettlementPreview,
@@ -22,6 +27,7 @@ import { CapitalizeAllProfitsModalComponent } from '../../components/capitalize-
 import { ReinvestAllDistributedProfitsModalComponent } from '../../components/reinvest-all-distributed-profits-modal/reinvest-all-distributed-profits-modal.component';
 import { ShareholderStatementModalComponent } from '../../components/shareholder-statement-modal/shareholder-statement-modal.component';
 import { CompanyProfitStatementModalComponent } from '../../components/company-profit-statement-modal/company-profit-statement-modal.component';
+import { CompanyBalanceModalComponent } from '../../components/company-balance-modal/company-balance-modal.component';
 
 import { PaginationComponent } from '../../../../shared/components/pagination/pagination.component';
 import { CurrencyArPipe } from '../../../../shared/pipes/currency-ar.pipe';
@@ -46,6 +52,8 @@ const REFETCH_DEBOUNCE_MS = 300;
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     DecimalPipe,
+    RouterLink,
+    CompanyBalanceModalComponent,
     ShareholderFormModalComponent,
     ProfitDistributionModalComponent,
     ProfitSettlementDetailsModalComponent,
@@ -73,7 +81,23 @@ export class ShareholdersComponent {
   protected readonly PERMS = PERMISSIONS;
 
   // ── data ──
+  /** Rows as returned — page 1 also carries the synthetic "الشركة" row (isCompany). */
   protected readonly shareholders = signal<Shareholder[]>([]);
+  /** Real shareholders only — the company row is display-only and excluded from aggregates. */
+  private readonly realShareholders = computed(() =>
+    this.shareholders().filter((s) => !s.isCompany),
+  );
+
+  // ── summary (header cards) ──
+  protected readonly summary = signal<ShareholdersSummary | null>(null);
+  protected readonly summaryLoading = signal(false);
+
+  // ── company balance deposit/withdraw ──
+  protected readonly CompanyBalanceTxType = CompanyBalanceTxType;
+  protected readonly companyTxOpen = signal(false);
+  protected readonly companyTxType = signal<CompanyBalanceTxType>(
+    CompanyBalanceTxType.Deposit,
+  );
   protected readonly loading = signal(false);
   protected readonly isPrinting = signal(false);
 
@@ -153,16 +177,16 @@ export class ShareholdersComponent {
 
   /** Page-level aggregates for the summary cards. */
   protected readonly pageContributed = computed(() =>
-    this.shareholders().reduce((s, sh) => s + (sh.contributedAmount ?? 0), 0),
+    this.realShareholders().reduce((s, sh) => s + (sh.contributedAmount ?? 0), 0),
   );
   protected readonly pageProfit = computed(() =>
-    this.shareholders().reduce((s, sh) => s + (sh.totalProfitReceived ?? 0), 0),
+    this.realShareholders().reduce((s, sh) => s + (sh.totalProfitReceived ?? 0), 0),
   );
   protected readonly pageOwnership = computed(() =>
-    this.shareholders().reduce((s, sh) => s + (sh.ownedPercentage ?? 0), 0),
+    this.realShareholders().reduce((s, sh) => s + (sh.ownedPercentage ?? 0), 0),
   );
   protected readonly pageAccruedProfit = computed(() =>
-    this.shareholders().reduce((s, sh) => s + (sh.accruedProfit ?? 0), 0),
+    this.realShareholders().reduce((s, sh) => s + (sh.accruedProfit ?? 0), 0),
   );
 
   /** Combined trigger — any filter / page change refetches. */
@@ -200,11 +224,46 @@ export class ShareholdersComponent {
     // either scope.
     onInvalidate(this.cache, 'shareholder', () => this.refreshAll());
     onInvalidate(this.cache, 'treasur', () => this.refreshAll());
+
+    this.loadSummary();
   }
 
   private refreshAll(): void {
     this.refresh();
+    this.loadSummary(true);
     this.loadPreview(this.previewTrigger());
+  }
+
+  // ─────────── summary ───────────
+
+  protected loadSummary(force = false): void {
+    this.summaryLoading.set(true);
+    this.service.getSummary(force).subscribe({
+      next: (summary) => {
+        this.summary.set(summary);
+        this.summaryLoading.set(false);
+      },
+      error: () => {
+        this.summary.set(null);
+        this.summaryLoading.set(false);
+      },
+    });
+  }
+
+  // ─────────── company balance deposit / withdraw ───────────
+
+  protected openCompanyTx(type: CompanyBalanceTxType): void {
+    this.companyTxType.set(type);
+    this.companyTxOpen.set(true);
+  }
+
+  protected closeCompanyTx(): void {
+    this.companyTxOpen.set(false);
+  }
+
+  /** The service invalidation already triggers refreshAll() (summary + list). */
+  protected onCompanyTxSaved(): void {
+    this.companyTxOpen.set(false);
   }
 
   // ─────────── pending-distribution preview ───────────
@@ -293,8 +352,12 @@ export class ShareholdersComponent {
     fetchAllPages<Shareholder>((pageIndex, pageSize) =>
       this.service.refresh({ search, pageIndex, pageSize }),
     ).subscribe({
-      next: (rows) => {
+      next: (all) => {
         this.isPrinting.set(false);
+        // The synthetic company row is display-only — keep it out of the list
+        // and totals; its balance is printed in the meta block instead.
+        const rows = all.filter((r) => !r.isCompany);
+        const companyBalance = this.summary()?.companyBalance;
         const totalContributed = rows.reduce(
           (s, r) => s + (r.contributedAmount ?? 0),
           0,
@@ -307,7 +370,12 @@ export class ShareholdersComponent {
         this.printer.print<Shareholder>({
           title: 'قائمة المساهمين',
           subtitle: 'الشركاء ونسب الملكية والأرباح الموزّعة',
-          meta: search ? [{ label: 'بحث', value: search }] : undefined,
+          meta: [
+            ...(search ? [{ label: 'بحث', value: search }] : []),
+            ...(companyBalance != null
+              ? [{ label: 'رصيد الشركة', value: `${Math.round(companyBalance).toLocaleString('ar-EG')} ج.م` }]
+              : []),
+          ],
           orientation: 'landscape',
           columns: [
             {

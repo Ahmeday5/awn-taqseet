@@ -10,8 +10,10 @@ import {
   DashboardClient,
   DashboardClientsQuery,
   DashboardClientsResponse,
+  ToggleClientActiveResult,
   UpdateClientPayload,
 } from '../models/dashboard-client.model';
+import { ApiResult } from '../../../core/models/api-response.model';
 import {
   ClientContractRow,
   ClientContractsQuery,
@@ -189,6 +191,22 @@ export class CustomersService {
     return this.api.delete<void>(API_ENDPOINTS.clients.delete(id), {
       context: withInlineHandling(withCacheInvalidate([CLIENTS_CACHE_KEY])),
     });
+  }
+
+  /**
+   * Flips a client's account activation
+   * (PUT /dashboard/clients/{id}/toggle-active, no body). Keeps the envelope
+   * `message` so the caller can toast the server's Arabic text verbatim.
+   * Invalidates the clients cache scope like the other client writes.
+   */
+  toggleClientActive(id: number): Observable<ApiResult<ToggleClientActiveResult>> {
+    return this.api.putWithMessage<ToggleClientActiveResult>(
+      API_ENDPOINTS.clients.toggleActive(id),
+      {},
+      {
+        context: withInlineHandling(withCacheInvalidate([CLIENTS_CACHE_KEY])),
+      },
+    );
   }
 
   private toClientsParams(

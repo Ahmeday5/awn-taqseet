@@ -26,7 +26,7 @@
         </div>
         <div class="sa-st-hero-right">
           <div class="sa-st-stat-label">الرصيد الحالي</div>
-          <div class="sa-st-stat-val">{{ a.balance | currencyAr: true }}</div>
+          <div class="sa-st-stat-val" [style.color]="a.balance < 0 ? 'var(--re)' : null">{{ a.balance | currencyAr: true }}</div>
         </div>
       </section>
     }

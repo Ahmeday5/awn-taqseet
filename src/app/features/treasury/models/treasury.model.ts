@@ -20,6 +20,11 @@ export interface Treasury {
   representativeId?: number | null;
   /** Display name of the linked representative (sub-rep treasuries only). */
   representative?: string | null;
+  /**
+   * Visible to every representative. For a representative who doesn't own
+   * it (`representativeId` ≠ theirs) the treasury is view-only.
+   */
+  sharedWithAllRepresentatives?: boolean;
   transactions?: TreasuryTransaction[];
   vouchers?: TreasurySummary[];
 }
@@ -35,6 +40,8 @@ export interface CreateTreasuryPayload {
   type: TreasuryType;
   isActive: boolean;
   representativeId: number | null;
+  /** "تظهر لكل المناديب" — defaults to false. */
+  sharedWithAllRepresentatives: boolean;
 }
 
 /**
@@ -46,6 +53,7 @@ export interface UpdateTreasuryPayload {
   type: TreasuryType;
   isActive: boolean;
   representativeId: number | null;
+  sharedWithAllRepresentatives: boolean;
 }
 
 export interface TreasuryTransaction {

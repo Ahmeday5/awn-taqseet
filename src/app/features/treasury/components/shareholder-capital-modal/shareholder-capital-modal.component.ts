@@ -44,6 +44,7 @@ import {
   isCapitalInflow,
 } from '../../constants/capital-transaction-labels';
 import { CapitalTransactionEditModalComponent } from '../capital-transaction-edit-modal/capital-transaction-edit-modal.component';
+import { CapitalClassification } from '../../models/capital-classification.model';
 
 type CapitalMode = 'transaction' | 'capitalize';
 
@@ -134,6 +135,12 @@ export class ShareholderCapitalModalComponent {
   private readonly treasuries = signal<ShareholderTreasuryLookup[]>([]);
   protected readonly treasuriesLoading = signal(false);
 
+  // ── capital classifications (optional tag on deposits/withdrawals + ledger filter) ──
+  private readonly classifications = signal<CapitalClassification[]>([]);
+  protected readonly classificationsLoading = signal(false);
+  /** Ledger filter — null shows every movement. */
+  protected readonly classificationFilter = signal<number | null>(null);
+
   // ── ledger ──
   protected readonly transactions = signal<CapitalTransaction[]>([]);
   protected readonly txLoading = signal(false);
@@ -201,13 +208,8 @@ export class ShareholderCapitalModalComponent {
     })),
   );
 
-  /** Every treasury, available as source for capitalising profits. */
-  protected readonly capOperationalTreasuryOptions = computed<SearchableSelectOption[]>(() =>
-    this.treasuries().map((t) => ({
-      value: t.id,
-      label: t.name,
-      hint: t.representativeName ?? undefined,
-    })),
+  protected readonly classificationOptions = computed<SearchableSelectOption[]>(() =>
+    this.classifications().map((c) => ({ value: c.id, label: c.name })),
   );
 
   /** Capital balance after a deposit (adds) / withdrawal (subtracts). */
@@ -258,10 +260,10 @@ export class ShareholderCapitalModalComponent {
     amount: [0, [Validators.required, Validators.min(0.01)]],
     date: [this.todayISO(), [Validators.required]],
     notes: [''],
+    capitalClassificationId: this.fb.control<number | null>(null),
   });
 
   protected readonly capForm = this.fb.nonNullable.group({
-    profitsTreasuryId: this.fb.control<number | null>(null, [Validators.required]),
     amount: [0, [Validators.required, Validators.min(0.01)]],
     date: [this.todayISO(), [Validators.required]],
     notes: [''],
@@ -282,6 +284,7 @@ export class ShareholderCapitalModalComponent {
           this.resetState(sh);
           this.loadPreview();
           this.loadTreasuries();
+          this.loadClassifications();
           this.fetchTransactions(sh.id, true);
         }
       },
@@ -336,6 +339,9 @@ export class ShareholderCapitalModalComponent {
         treasuryId: Number(raw.treasuryId),
         date: raw.date,
         notes: (raw.notes ?? '').trim(),
+        capitalClassificationId: raw.capitalClassificationId
+          ? Number(raw.capitalClassificationId)
+          : null,
       })
       .subscribe({
         next: () => {
@@ -364,21 +370,24 @@ export class ShareholderCapitalModalComponent {
     }
 
     const raw = this.capForm.getRawValue();
-    const profitsTreasuryId = Number(raw.profitsTreasuryId);
-    if (!profitsTreasuryId) return;
     this.serverError.set(null);
     this.submitting.set(true);
 
     this.service
       .capitalizeProfit(sh.id, {
-        profitsTreasuryId,
         amount: Number(raw.amount) || 0,
         date: raw.date,
         notes: (raw.notes ?? '').trim(),
       })
       .subscribe({
-        next: () => {
-          this.afterWrite(sh.id, 'تم ترحيل الأرباح إلى رأس المال بنجاح');
+        next: (res) => {
+          const receipt = res?.companyReceiptVoucherNumber;
+          this.afterWrite(
+            sh.id,
+            receipt
+              ? `تم ترحيل الأرباح إلى رأس المال بنجاح — سند قبض حصة الشركة: ${receipt}`
+              : 'تم ترحيل الأرباح إلى رأس المال بنجاح',
+          );
           this.capForm.controls.amount.setValue(0);
           this.draftCapAmount.set(0);
           // Available profit shrank — refresh the live preview.
@@ -405,6 +414,13 @@ export class ShareholderCapitalModalComponent {
   protected onPageSizeChange(size: number): void {
     this.pageSize.set(size);
     if (this.pageIndex() !== 1) this.pageIndex.set(1);
+    const sh = this.shareholder();
+    if (sh) this.fetchTransactions(sh.id, false);
+  }
+
+  protected onClassificationFilterChange(value: string): void {
+    this.classificationFilter.set(value ? Number(value) : null);
+    this.pageIndex.set(1);
     const sh = this.shareholder();
     if (sh) this.fetchTransactions(sh.id, false);
   }
@@ -516,14 +532,16 @@ export class ShareholderCapitalModalComponent {
     this.draftTxAmount.set(0);
     this.draftCapAmount.set(0);
     this.pageIndex.set(1);
+    this.classificationFilter.set(null);
     this.txForm.reset({
       type: CapitalTransactionType.Receipt,
       treasuryId: null,
       amount: 0,
       date: this.todayISO(),
       notes: '',
+      capitalClassificationId: null,
     });
-    this.capForm.reset({ profitsTreasuryId: null, amount: 0, date: this.todayISO(), notes: '' });
+    this.capForm.reset({ amount: 0, date: this.todayISO(), notes: '' });
   }
 
   private loadPreview(): void {
@@ -557,9 +575,27 @@ export class ShareholderCapitalModalComponent {
     });
   }
 
+  private loadClassifications(): void {
+    this.classificationsLoading.set(true);
+    this.service.allClassifications().subscribe({
+      next: (list) => {
+        this.classifications.set(list ?? []);
+        this.classificationsLoading.set(false);
+      },
+      error: () => {
+        this.classifications.set([]);
+        this.classificationsLoading.set(false);
+      },
+    });
+  }
+
   private fetchTransactions(shareholderId: number, force: boolean): void {
     this.txLoading.set(true);
-    const query = { pageIndex: this.pageIndex(), pageSize: this.pageSize() };
+    const query = {
+      pageIndex: this.pageIndex(),
+      pageSize: this.pageSize(),
+      classificationId: this.classificationFilter(),
+    };
     const stream$ = force
       ? this.service.refreshCapitalTransactions(shareholderId, query)
       : this.service.listCapitalTransactions(shareholderId, query);

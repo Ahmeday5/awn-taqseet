@@ -59,6 +59,56 @@
 .sh-stat-pos { color: var(--gr); }
 .sh-stat-bl  { color: var(--bl); }
 
+/* ── WHOLE-POPULATION TOTALS ── */
+.sh-totals {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 11px;
+  margin-bottom: 11px;
+
+  @media (max-width: 900px) { grid-template-columns: repeat(2, 1fr); }
+  @media (max-width: 480px) { grid-template-columns: 1fr; }
+}
+
+.sh-company-card {
+  border-color: var(--te);
+}
+
+.sh-company-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+/* ── SYNTHETIC COMPANY ROW ── */
+.sh-row-company td {
+  background: var(--te-l, rgba(23, 162, 184, 0.08));
+}
+
+.sh-avatar-company {
+  background: var(--te, #138496);
+  color: #fff;
+}
+
+.sh-company-badge {
+  display: inline-block;
+  width: fit-content;
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 10px;
+  background: var(--te, #138496);
+  color: #fff;
+}
+
+.sh-bar-company { background: var(--te, #138496); }
+
+.sh-company-note {
+  font-size: 10px;
+  color: var(--txt3);
+}
+
 /* ── TOOLBAR ── */
 .sh-toolbar {
   display: flex;

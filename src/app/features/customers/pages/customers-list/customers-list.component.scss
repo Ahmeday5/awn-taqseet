@@ -47,6 +47,7 @@
 }
 
 .cl-hero-overdue { color: #ffd2cc; }
+.cl-hero-pending { color: #ffe3a3; }
 
 /* ── TOOLBAR ── */
 .cl-toolbar {
@@ -186,6 +187,21 @@
 
   &:hover {
     background-color: var(--bg2, rgba(0, 0, 0, 0.035));
+  }
+}
+
+/* Inactive account (e.g. mobile-app signup awaiting admin activation). */
+.cl-row-inactive {
+  > td {
+    background-color: var(--am-l, #f4eee1);
+  }
+
+  > td:first-child {
+    box-shadow: inset -3px 0 0 var(--am, #8a6d3b);
+  }
+
+  &:hover > td {
+    background-color: color-mix(in srgb, var(--am-l, #f4eee1) 85%, var(--am, #8a6d3b));
   }
 }
 

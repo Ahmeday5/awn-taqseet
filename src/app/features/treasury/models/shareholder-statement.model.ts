@@ -17,6 +17,8 @@ export interface StatementEntry {
   capitalBalanceAfter: number;
   treasuryName: string;
   notes: string | null;
+  capitalClassificationId: number | null;
+  capitalClassificationName: string | null;
 }
 
 export interface ShareholderStatementHeader {
@@ -48,6 +50,8 @@ export interface ShareholderStatement {
   /** Distributed profit still available (`totalProfitDistributed − reinvested − withdrawn`). */
   distributedProfitBalance: number;
   accruedProfit: number;
+  /** Net capital = deposits + capitalised profit − withdrawals. */
+  netCapitalBalance: number;
   entries: {
     pageIndex: number;
     pageSize: number;
@@ -62,4 +66,6 @@ export interface StatementQuery {
   pageSize?: number;
   fromDate?: string;
   toDate?: string;
+  /** Optional filter by capital classification. */
+  classificationId?: number | null;
 }

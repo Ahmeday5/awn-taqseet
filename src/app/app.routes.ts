@@ -173,6 +173,15 @@ export const routes: Routes = [
           import('./features/users/users.routes').then((m) => m.usersRoutes),
       },
       {
+        // Admin-only system tools (one-off company-balance reconciliation).
+        path: 'settings',
+        canActivate: [roleGuard(['Admin'])],
+        loadComponent: () =>
+          import('./features/settings/pages/settings/settings.component').then(
+            (m) => m.SettingsComponent,
+          ),
+      },
+      {
         path: 'reports',
         canActivate: [permissionGuard(PERMISSIONS.dashboardView)],
         loadChildren: () =>

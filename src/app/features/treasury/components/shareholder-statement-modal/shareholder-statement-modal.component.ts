@@ -47,6 +47,7 @@ import {
 } from '../../constants/statement-transaction-labels';
 import { ReinvestDistributedProfitModalComponent } from '../reinvest-distributed-profit-modal/reinvest-distributed-profit-modal.component';
 import { WithdrawDistributedProfitModalComponent } from '../withdraw-distributed-profit-modal/withdraw-distributed-profit-modal.component';
+import { CapitalClassification } from '../../models/capital-classification.model';
 
 const DEFAULT_PAGE_SIZE = 10;
 const VOUCHER_PREFIX_LEN = 18;
@@ -96,6 +97,9 @@ export class ShareholderStatementModalComponent {
   // ── date filters (UI state — applied on explicit click) ──
   protected readonly fromDate = signal('');
   protected readonly toDate = signal('');
+  /** Optional capital-classification filter (applied immediately). */
+  protected readonly classificationId = signal<number | null>(null);
+  protected readonly classifications = signal<CapitalClassification[]>([]);
 
   // ── distributed profit actions (child modals) ──
   protected readonly reinvestOpen = signal(false);
@@ -154,8 +158,15 @@ export class ShareholderStatementModalComponent {
   );
 
   protected readonly hasFilters = computed(
-    () => !!this.fromDate() || !!this.toDate(),
+    () => !!this.fromDate() || !!this.toDate() || this.classificationId() != null,
   );
+
+  protected readonly classificationName = computed(() => {
+    const id = this.classificationId();
+    return id == null
+      ? null
+      : (this.classifications().find((c) => c.id === id)?.name ?? null);
+  });
 
   private lastShId: number | null = null;
 
@@ -172,8 +183,10 @@ export class ShareholderStatementModalComponent {
         this.error.set(null);
         this.fromDate.set('');
         this.toDate.set('');
+        this.classificationId.set(null);
         this.pageIndex.set(1);
         this.fetch(sh.id, 1, this.pageSize(), false);
+        if (!this.classifications().length) this.loadClassifications();
       },
       { allowSignalWrites: true },
     );
@@ -274,9 +287,15 @@ export class ShareholderStatementModalComponent {
     this.fetch(sh.id, 1, this.pageSize(), true);
   }
 
+  protected onClassificationChange(value: string): void {
+    this.classificationId.set(value ? Number(value) : null);
+    this.applyDates();
+  }
+
   protected clearDates(): void {
     this.fromDate.set('');
     this.toDate.set('');
+    this.classificationId.set(null);
     const sh = this.shareholder();
     if (!sh) return;
     this.pageIndex.set(1);
@@ -341,10 +360,11 @@ export class ShareholderStatementModalComponent {
 
     const fromDate = this.fromDate() || undefined;
     const toDate = this.toDate() || undefined;
+    const classificationId = this.classificationId();
     const rows = await firstValueFrom(
       fetchAllPages<StatementEntry>((pageIndex, pageSize) =>
         this.service
-          .refreshStatement(sh.id, { pageIndex, pageSize, fromDate, toDate })
+          .refreshStatement(sh.id, { pageIndex, pageSize, fromDate, toDate, classificationId })
           .pipe(map((res) => res.entries)),
       ),
     );
@@ -368,11 +388,15 @@ export class ShareholderStatementModalComponent {
             ? `${fromDate ? formatPrintDate(fromDate) : 'البداية'} ← ${toDate ? formatPrintDate(toDate) : 'اليوم'}`
             : 'كل الحركات',
         },
+        ...(this.classificationName()
+          ? [{ label: 'التصنيف', value: this.classificationName()! }]
+          : []),
       ],
       metrics: [
         { label: 'رأس المال', value: formatPrintCurrency(hero.contributedAmount), emphasis: true },
         { label: 'نسبة الملكية', value: formatPercentAr(hero.ownedPercentage), tone: 'accent' },
         { label: 'الأرباح المستحقة', value: formatPrintCurrency(hero.accruedProfit), tone: hero.accruedProfit < 0 ? 'negative' : 'positive' },
+        ...(st ? [{ label: 'صافي رأس المال', value: formatPrintCurrency(st.netCapitalBalance), tone: (st.netCapitalBalance < 0 ? 'negative' : 'accent') as 'negative' | 'accent' }] : []),
         { label: 'الأرباح الموزعة المتاحة', value: formatPrintCurrency(this.distributedProfitBalance()) },
         ...(st ? [{ label: 'إجمالي الأرباح الموزعة', value: formatPrintCurrency(st.totalProfitDistributed) }] : []),
       ],
@@ -400,12 +424,20 @@ export class ShareholderStatementModalComponent {
             width: '12%',
             format: (v, row) => (this.affectsCapital(row.transactionType) ? formatPrintCurrency(v) : '—'),
           },
+          { key: (row) => row.capitalClassificationName || '—', header: 'التصنيف', align: 'start', width: '10%' },
           { key: 'treasuryName', header: 'الخزينة', align: 'start', width: '12%' },
           { key: (row) => row.notes || '—', header: 'ملاحظات', align: 'start' },
         ],
       },
     });
   };
+
+  private loadClassifications(): void {
+    this.service.allClassifications().subscribe({
+      next: (list) => this.classifications.set(list ?? []),
+      error: () => this.classifications.set([]),
+    });
+  }
 
   private fetch(
     shId: number,
@@ -421,6 +453,7 @@ export class ShareholderStatementModalComponent {
       pageSize,
       fromDate: this.fromDate() || undefined,
       toDate: this.toDate() || undefined,
+      classificationId: this.classificationId(),
     };
 
     const stream$ = force

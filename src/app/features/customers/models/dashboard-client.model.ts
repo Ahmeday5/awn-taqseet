@@ -58,6 +58,18 @@ export interface DashboardClient {
 
   rating: DashboardClientRating | null;
   status: DashboardClientStatus;
+
+  /**
+   * Account activation. Clients self-registered from the mobile app arrive
+   * inactive until an admin activates them; dashboard-created ones are active.
+   */
+  isActive: boolean;
+}
+
+/** `data` of PUT /dashboard/clients/{id}/toggle-active. */
+export interface ToggleClientActiveResult {
+  id: number;
+  isActive: boolean;
 }
 
 /** Query params accepted by `GET /dashboard/clients`. */
@@ -117,6 +129,7 @@ export interface CreatedClient {
   phoneNumber: string;
   whatsappNumber: string;
   createdAt: string;
+  isActive: boolean;
 }
 
 /**
@@ -138,6 +151,7 @@ export interface ClientProfileClient {
   building: string | null;
   floor: string | null;
   department: string | null;
+  isActive: boolean;
 }
 
 /** Full response of `GET /dashboard/clients/{id}`. */

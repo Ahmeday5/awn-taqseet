@@ -10,13 +10,31 @@ import {
   withInlineHandling,
   withSkipLoader,
 } from '../../../core/http/http-context.tokens';
-import { toList, toPaged } from '../../../core/utils/api-list.util';
+import { map } from 'rxjs/operators';
 import {
+  asPaged,
+  fetchAllPages,
+  toList,
+  toPaged,
+} from '../../../core/utils/api-list.util';
+import {
+  CompanyBalanceTransaction,
+  CompanyBalanceTransactionPayload,
   CreateShareholderPayload,
+  ReconcileHistoricalResult,
   Shareholder,
   ShareholdersQuery,
+  ShareholdersSummary,
   UpdateShareholderPayload,
 } from '../models/shareholder.model';
+import {
+  CapitalClassification,
+  CapitalClassificationPayload,
+  CapitalClassificationsQuery,
+  CapitalClassificationStatement,
+  CapitalClassificationStatementEntry,
+  CapitalClassificationStatementQuery,
+} from '../models/capital-classification.model';
 import {
   CreateProfitSettlementPayload,
   ProfitSettlement,
@@ -28,6 +46,7 @@ import {
 import {
   CapitalizeAllProfitsPayload,
   CapitalizeProfitPayload,
+  CapitalizeProfitsResult,
   CapitalTransaction,
   CapitalTransactionsQuery,
   CreateCapitalTransactionPayload,
@@ -230,8 +249,8 @@ export class ShareholdersService {
   capitalizeProfit(
     shareholderId: number,
     payload: CapitalizeProfitPayload,
-  ): Observable<CapitalTransaction> {
-    return this.api.post<CapitalTransaction>(
+  ): Observable<CapitalizeProfitsResult> {
+    return this.api.post<CapitalizeProfitsResult>(
       API_ENDPOINTS.shareholders.capitalizeProfit(shareholderId),
       payload,
       {
@@ -308,8 +327,8 @@ export class ShareholdersService {
    */
   capitalizeAllProfits(
     payload: CapitalizeAllProfitsPayload,
-  ): Observable<{ message: string }> {
-    return this.api.post<{ message: string }>(
+  ): Observable<CapitalizeProfitsResult> {
+    return this.api.post<CapitalizeProfitsResult>(
       API_ENDPOINTS.shareholders.capitalizeAllProfits,
       payload,
       {
@@ -411,6 +430,7 @@ export class ShareholdersService {
     return {
       PageIndex: query.pageIndex ?? 1,
       PageSize: query.pageSize ?? 10,
+      classificationId: query.classificationId ?? undefined,
     };
   }
 
@@ -448,6 +468,7 @@ export class ShareholdersService {
       PageSize: query.pageSize ?? 10,
       ...(query.fromDate ? { fromDate: query.fromDate } : {}),
       ...(query.toDate ? { toDate: query.toDate } : {}),
+      classificationId: query.classificationId ?? undefined,
     };
   }
 
@@ -486,6 +507,171 @@ export class ShareholdersService {
       ...(query.fromDate ? { fromDate: query.fromDate } : {}),
       ...(query.toDate ? { toDate: query.toDate } : {}),
     };
+  }
+
+  // ─────────────── summary + company balance ───────────────
+
+  /** Header cards: shareholders count, capital, company balance (may be negative). */
+  getSummary(force = false): Observable<ShareholdersSummary> {
+    const ctx = withCache({ ttlMs: SHAREHOLDERS_TTL_MS });
+    return this.api.get<ShareholdersSummary>(
+      API_ENDPOINTS.shareholders.summary,
+      { context: force ? withCacheBypass(ctx) : ctx },
+    );
+  }
+
+  /**
+   * Deposit/withdraw against the company's own balance. Withdrawals are never
+   * blocked (the balance may go negative). Ownership % shifts, and a treasury
+   * moves, so both scopes are invalidated.
+   */
+  createCompanyBalanceTransaction(
+    payload: CompanyBalanceTransactionPayload,
+  ): Observable<CompanyBalanceTransaction> {
+    return this.api.post<CompanyBalanceTransaction>(
+      API_ENDPOINTS.shareholders.companyBalanceTransactions,
+      payload,
+      {
+        context: withInlineHandling(
+          withCacheInvalidate([SHAREHOLDERS_CACHE_KEY, TREASURY_CACHE_KEY]),
+        ),
+      },
+    );
+  }
+
+  updateCompanyBalanceTransaction(
+    voucherId: number,
+    payload: CompanyBalanceTransactionPayload,
+  ): Observable<CompanyBalanceTransaction> {
+    return this.api.put<CompanyBalanceTransaction>(
+      API_ENDPOINTS.shareholders.companyBalanceTransactionById(voucherId),
+      payload,
+      {
+        context: withInlineHandling(
+          withCacheInvalidate([SHAREHOLDERS_CACHE_KEY, TREASURY_CACHE_KEY]),
+        ),
+      },
+    );
+  }
+
+  deleteCompanyBalanceTransaction(voucherId: number): Observable<unknown> {
+    return this.api.delete<unknown>(
+      API_ENDPOINTS.shareholders.companyBalanceTransactionById(voucherId),
+      {
+        context: withInlineHandling(
+          withCacheInvalidate([SHAREHOLDERS_CACHE_KEY, TREASURY_CACHE_KEY]),
+        ),
+      },
+    );
+  }
+
+  /** Admin one-off (idempotent — a second run is a no-op). */
+  reconcileHistoricalCompanyBalance(): Observable<ReconcileHistoricalResult> {
+    return this.api.post<ReconcileHistoricalResult>(
+      API_ENDPOINTS.shareholders.reconcileHistoricalCompanyBalance,
+      {},
+      {
+        context: withInlineHandling(
+          withCacheInvalidate([SHAREHOLDERS_CACHE_KEY, TREASURY_CACHE_KEY]),
+        ),
+      },
+    );
+  }
+
+  // ─────────────── capital classifications ───────────────
+
+  listClassifications(
+    query: CapitalClassificationsQuery = {},
+    force = false,
+  ): Observable<PagedResponse<CapitalClassification>> {
+    const ctx = withCache({ ttlMs: SHAREHOLDERS_TTL_MS });
+    return this.api
+      .get<unknown>(API_ENDPOINTS.shareholders.capitalClassifications, {
+        params: this.toParams(query),
+        context: force ? withCacheBypass(ctx) : ctx,
+      })
+      .pipe(toPaged<CapitalClassification>());
+  }
+
+  /** Every classification, for the capital-movement pickers/filters. */
+  allClassifications(): Observable<CapitalClassification[]> {
+    return fetchAllPages<CapitalClassification>((pageIndex, pageSize) =>
+      this.listClassifications({ pageIndex, pageSize }),
+    );
+  }
+
+  getClassification(id: number): Observable<CapitalClassification> {
+    return this.api.get<CapitalClassification>(
+      API_ENDPOINTS.shareholders.capitalClassificationById(id),
+      { context: withCache({ ttlMs: SHAREHOLDERS_TTL_MS }) },
+    );
+  }
+
+  createClassification(
+    payload: CapitalClassificationPayload,
+  ): Observable<CapitalClassification> {
+    return this.api.post<CapitalClassification>(
+      API_ENDPOINTS.shareholders.capitalClassifications,
+      payload,
+      {
+        context: withInlineHandling(
+          withCacheInvalidate([SHAREHOLDERS_CACHE_KEY]),
+        ),
+      },
+    );
+  }
+
+  updateClassification(
+    id: number,
+    payload: CapitalClassificationPayload,
+  ): Observable<CapitalClassification> {
+    return this.api.put<CapitalClassification>(
+      API_ENDPOINTS.shareholders.capitalClassificationById(id),
+      payload,
+      {
+        context: withInlineHandling(
+          withCacheInvalidate([SHAREHOLDERS_CACHE_KEY]),
+        ),
+      },
+    );
+  }
+
+  deleteClassification(id: number): Observable<unknown> {
+    return this.api.delete<unknown>(
+      API_ENDPOINTS.shareholders.capitalClassificationById(id),
+      {
+        context: withInlineHandling(
+          withCacheInvalidate([SHAREHOLDERS_CACHE_KEY]),
+        ),
+      },
+    );
+  }
+
+  getClassificationStatement(
+    id: number,
+    query: CapitalClassificationStatementQuery = {},
+    force = false,
+  ): Observable<CapitalClassificationStatement> {
+    const ctx = withCache({ ttlMs: SHAREHOLDERS_TTL_MS });
+    return this.api
+      .get<CapitalClassificationStatement>(
+        API_ENDPOINTS.shareholders.capitalClassificationStatement(id),
+        {
+          params: {
+            PageIndex: query.pageIndex ?? 1,
+            PageSize: query.pageSize ?? 10,
+            fromDate: query.fromDate || undefined,
+            toDate: query.toDate || undefined,
+          },
+          context: force ? withCacheBypass(ctx) : ctx,
+        },
+      )
+      .pipe(
+        map((res) => ({
+          ...res,
+          entries: asPaged<CapitalClassificationStatementEntry>(res?.entries),
+        })),
+      );
   }
 
   // ─────────────── treasuries lookup (unfiltered — includes profit/rep treasuries) ───────────────

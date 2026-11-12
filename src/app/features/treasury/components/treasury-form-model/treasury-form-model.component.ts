@@ -119,6 +119,8 @@ export class TreasuryFormModelComponent {
     type: [TreasuryType.Main, [Validators.required]],
     isActive: [true, [Validators.required]],
     representativeId: this.fb.nonNullable.control<number | null>(null),
+    /** Visible (read-only) to every representative, not just the owner. */
+    sharedWithAllRepresentatives: [false],
   });
 
   constructor() {
@@ -252,6 +254,7 @@ export class TreasuryFormModelComponent {
         type: t.type,
         isActive: t.isActive,
         representativeId: t.representativeId ?? null,
+        sharedWithAllRepresentatives: !!t.sharedWithAllRepresentatives,
       });
       this.onTypeChanged(t.type);
       return;
@@ -263,6 +266,7 @@ export class TreasuryFormModelComponent {
       type: TreasuryType.Main,
       isActive: true,
       representativeId: null,
+      sharedWithAllRepresentatives: false,
     });
     this.onTypeChanged(TreasuryType.Main);
   }
@@ -275,6 +279,7 @@ export class TreasuryFormModelComponent {
     type: TreasuryType;
     isActive: boolean;
     representativeId: number | null;
+    sharedWithAllRepresentatives: boolean;
   }): CreateTreasuryPayload {
     return {
       name: raw.name.trim(),
@@ -282,6 +287,7 @@ export class TreasuryFormModelComponent {
       type: raw.type,
       isActive: raw.isActive,
       representativeId: this.resolveRepresentativeId(raw),
+      sharedWithAllRepresentatives: !!raw.sharedWithAllRepresentatives,
     };
   }
 
@@ -290,12 +296,14 @@ export class TreasuryFormModelComponent {
     type: TreasuryType;
     isActive: boolean;
     representativeId: number | null;
+    sharedWithAllRepresentatives: boolean;
   }): UpdateTreasuryPayload {
     return {
       name: raw.name.trim(),
       type: raw.type,
       isActive: raw.isActive,
       representativeId: this.resolveRepresentativeId(raw),
+      sharedWithAllRepresentatives: !!raw.sharedWithAllRepresentatives,
     };
   }
 

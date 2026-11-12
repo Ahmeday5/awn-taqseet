@@ -84,22 +84,19 @@
     >
       <div>
         <span style="color:var(--txt2)">الرصيد الحالي:</span>
-        <span style="font-weight:700">{{ currentBalance() | currencyAr: true }}</span>
+        <span
+          style="font-weight:700"
+          [style.color]="currentBalance() < 0 ? 'var(--re,#c0392b)' : null"
+        >{{ currentBalance() | currencyAr: true }}</span>
       </div>
       <div class="d-flex align-items-center gap-1">
         <span style="color:var(--txt2)">الرصيد بعد السند:</span>
         <span
           style="font-weight:700"
-          [style.color]="wouldOverdraw() ? 'var(--re,#c0392b)' : (draftType() === VoucherType.Receipt ? 'var(--gr)' : 'var(--te)')"
+          [style.color]="projectedBalance() < 0 ? 'var(--re,#c0392b)' : (draftType() === VoucherType.Receipt ? 'var(--gr)' : 'var(--te)')"
         >{{ projectedBalance() | currencyAr: true }}</span>
       </div>
     </div>
-
-    @if (wouldOverdraw()) {
-      <div class="alert alert-warning mt-2 mb-0" role="alert" style="font-size:11px;">
-        تنبيه: هذا السند سيجعل رصيد الحساب بالسالب.
-      </div>
-    }
 
     @if (serverError(); as msg) {
       <div class="alert alert-danger mt-2 mb-0" role="alert" style="font-size:11px;">

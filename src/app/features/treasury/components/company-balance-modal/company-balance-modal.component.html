@@ -1,0 +1,70 @@
+<app-modal
+  [open]="open()"
+  [title]="title()"
+  size="md"
+  [closeOnBackdrop]="!submitting()"
+  [closeOnEsc]="!submitting()"
+  (closed)="close()"
+>
+  <form [formGroup]="form" (ngSubmit)="submit()" novalidate autocomplete="off">
+    <div class="row g-3">
+      <div class="col-12 col-md-6">
+        <label class="form-label">المبلغ <span class="text-danger">*</span></label>
+        <input
+          type="number"
+          class="form-control"
+          formControlName="amount"
+          min="0"
+          step="0.01"
+          dir="ltr"
+          placeholder="0"
+          (input)="onAmountInput($any($event.target).value)"
+        />
+        <app-form-error [control]="form.controls.amount" label="المبلغ" />
+      </div>
+
+      <div class="col-12 col-md-6">
+        <label class="form-label">التاريخ <span class="text-danger">*</span></label>
+        <input type="date" class="form-control" formControlName="date" dir="ltr" />
+        <app-form-error [control]="form.controls.date" label="التاريخ" />
+      </div>
+
+      <div class="col-12">
+        <label class="form-label">ملاحظات</label>
+        <textarea class="form-control" rows="2" formControlName="notes" placeholder="(اختياري)"></textarea>
+      </div>
+    </div>
+
+    <div class="d-flex flex-wrap gap-3 mt-3" style="font-size:12px">
+      <div>
+        <span style="color:var(--txt3)">رصيد الشركة الحالي:</span>
+        <strong [style.color]="currentBalance() < 0 ? 'var(--re)' : null">{{ currentBalance() | currencyAr: true }}</strong>
+      </div>
+      <div>
+        <span style="color:var(--txt3)">الرصيد بعد العملية:</span>
+        <strong [style.color]="projected() < 0 ? 'var(--re)' : (isDeposit() ? 'var(--gr)' : null)">{{ projected() | currencyAr: true }}</strong>
+      </div>
+    </div>
+
+    @if (serverError(); as msg) {
+      <div class="alert alert-danger mt-2 mb-0" role="alert" style="font-size:11px;">{{ msg }}</div>
+    }
+  </form>
+
+  <ng-container modal-footer>
+    <button type="button" class="btn" [disabled]="submitting()" (click)="close()">إلغاء</button>
+    <button
+      type="button"
+      class="btn d-inline-flex align-items-center gap-2"
+      [class.btn-gr]="isDeposit()"
+      [class.btn-re]="!isDeposit()"
+      [disabled]="submitting() || form.invalid"
+      (click)="submit()"
+    >
+      @if (submitting()) {
+        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+      }
+      <span>{{ submitting() ? 'جاري الحفظ...' : (isDeposit() ? 'تسجيل الإيداع' : 'تسجيل السحب') }}</span>
+    </button>
+  </ng-container>
+</app-modal>

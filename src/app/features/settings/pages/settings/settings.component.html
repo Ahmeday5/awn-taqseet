@@ -1,0 +1,64 @@
+<div class="pgh">
+  <div>
+    <div class="pgt">الإعدادات</div>
+    <div class="pgs">أدوات إدارية للنظام</div>
+  </div>
+</div>
+
+<div class="card" style="padding:16px">
+  <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+    <div>
+      <div style="font-size:14px;font-weight:700">تسوية رصيد الشركة التاريخي</div>
+      <div style="font-size:11px;color:var(--txt2);margin-top:4px;max-width:560px">
+        خطوة لمرة واحدة: تعكس سندات الأرباح التاريخية القديمة وتعيد مبالغها إلى الخزائن الأصلية، ليصبح رصيد الشركة محسوبًا بالطريقة الجديدة.
+        تشغيلها مرة أخرى لا يغيّر شيئًا.
+      </div>
+    </div>
+    <button
+      type="button"
+      class="btn btn-sm btn-re d-inline-flex align-items-center gap-2"
+      [disabled]="running()"
+      (click)="runReconcile()"
+    >
+      @if (running()) {
+        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+      }
+      <span>{{ running() ? 'جاري التنفيذ...' : 'تنفيذ التسوية' }}</span>
+    </button>
+  </div>
+
+  @if (error(); as msg) {
+    <div class="alert alert-danger mt-3 mb-0" role="alert" style="font-size:12px">{{ msg }}</div>
+  }
+
+  @if (result(); as r) {
+    <div class="d-flex gap-3 flex-wrap mt-3" style="font-size:12px">
+      <div><span style="color:var(--txt3)">سندات معكوسة:</span> <strong>{{ r.vouchersReversed | number }}</strong></div>
+      <div><span style="color:var(--txt3)">حركات محذوفة:</span> <strong>{{ r.transactionsRemoved | number }}</strong></div>
+      <div><span style="color:var(--txt3)">إجمالي المُسترد:</span> <strong>{{ r.totalRestored | currencyAr: true }}</strong></div>
+    </div>
+
+    @if (r.treasuries.length) {
+      <div class="tw mt-2 mb-0">
+        <table>
+          <thead>
+            <tr>
+              <th>الخزينة</th>
+              <th class="text-end">المبلغ المُسترد</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (t of r.treasuries; track t.treasuryId) {
+              <tr>
+                <td>{{ t.treasuryName }}</td>
+                <td class="text-end" [style.color]="t.amountRestored < 0 ? 'var(--re)' : null">{{ t.amountRestored | currencyAr: true }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    } @else {
+      <div class="mt-2" style="font-size:11px;color:var(--txt3)">لا توجد تغييرات — التسوية منفّذة من قبل.</div>
+    }
+  }
+</div>

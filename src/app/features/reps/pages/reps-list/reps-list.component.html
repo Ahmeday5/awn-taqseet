@@ -24,7 +24,11 @@
       <div>
         <div class="rep-hero-stat-label">رصيد الخزائن الفرعية</div>
         <div class="rep-hero-stat-val">
-          {{ totalTreasuryBalance() | currencyAr: true }}
+          @if (totalTreasuryBalance() < 0) {
+            <span style="color:var(--re);background:#fff;border-radius:6px;padding:0 6px">{{ totalTreasuryBalance() | currencyAr: true }}</span>
+          } @else {
+            {{ totalTreasuryBalance() | currencyAr: true }}
+          }
         </div>
       </div>
       <div>
@@ -143,7 +147,7 @@
               </div>
             </td>
             <td class="rep-treasury">
-              <div class="rep-treasury-val">
+              <div class="rep-treasury-val" [style.color]="rep.treasury.currentBalance < 0 ? 'var(--re)' : null">
                 {{ rep.treasury.currentBalance | currencyAr: true }}
               </div>
               <div class="rep-treasury-name">{{ rep.treasury.name }}</div>

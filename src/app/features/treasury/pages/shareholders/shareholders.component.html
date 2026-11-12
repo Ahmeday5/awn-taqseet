@@ -7,6 +7,8 @@
   <div class="d-flex gap-2 flex-wrap">
     <button class="btn btn-sm" title="كشف حساب أرباح الشركة"
       (click)="openCompanyStatement()">كشف حساب الشركة</button>
+    <a class="btn btn-sm" routerLink="/treasury/shareholders/classifications"
+      title="تصنيفات حركات رأس المال">تصنيفات رأس المال</a>
     <button *appHasPermission="PERMS.treasuryFullAccess" class="btn btn-sm btn-te" [disabled]="!hasPendingProfits()"
       (click)="openCapitalizeAll()" title="ترحيل أرباح جميع المساهمين إلى رأس مالهم دفعةً واحدة">رسملة الأرباح
       الكلية</button>
@@ -46,6 +48,39 @@
       </div>
       }
     </div>
+  </div>
+</div>
+
+<!-- ── SHAREHOLDERS SUMMARY (whole population) ── -->
+<div class="sh-totals">
+  <div class="sc">
+    <div class="sc-l">عدد المساهمين</div>
+    <div class="sc-v">{{ (summary()?.shareholdersCount ?? count()) | number }}</div>
+  </div>
+  <div class="sc">
+    <div class="sc-l">إجمالي رأس مال المساهمين</div>
+    <div class="sc-v sh-stat-bl" [style.color]="(summary()?.totalShareholdersCapital ?? 0) < 0 ? 'var(--re)' : null">
+      {{ (summary()?.totalShareholdersCapital ?? 0) | currencyAr: true }}
+    </div>
+  </div>
+  <div class="sc sh-company-card">
+    <div class="sc-l">رصيد الشركة</div>
+    <div class="sc-v" [style.color]="(summary()?.companyBalance ?? 0) < 0 ? 'var(--re)' : 'var(--te)'">
+      {{ (summary()?.companyBalance ?? 0) | currencyAr: true }}
+    </div>
+    <div *appHasPermission="PERMS.shareholdersFullAccess" class="sh-company-actions">
+      <button type="button" class="btn btn-sm btn-gr" (click)="openCompanyTx(CompanyBalanceTxType.Deposit)">إيداع لرصيد الشركة</button>
+      <button type="button" class="btn btn-sm btn-re" (click)="openCompanyTx(CompanyBalanceTxType.Withdrawal)">سحب من رصيد الشركة</button>
+    </div>
+  </div>
+  <div class="sc">
+    <div class="sc-l">الإجمالي شامل الشركة</div>
+    <div class="sc-v" [style.color]="(summary()?.totalIncludingCompany ?? 0) < 0 ? 'var(--re)' : null">
+      {{ (summary()?.totalIncludingCompany ?? 0) | currencyAr: true }}
+    </div>
+    @if (summaryLoading()) {
+    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+    }
   </div>
 </div>
 
@@ -123,6 +158,37 @@
       </thead>
       <tbody>
         @for (s of shareholders(); track s.id) {
+        @if (s.isCompany) {
+        <tr class="sh-row-company">
+          <td class="sh-id">—</td>
+          <td>
+            <div class="sh-row-name">
+              <div class="sh-avatar sh-avatar-company" aria-hidden="true">🏢</div>
+              <div class="sh-row-name-text">
+                <span class="fw-600">{{ s.name }}</span>
+                <span class="sh-company-badge">رصيد الشركة</span>
+              </div>
+            </div>
+          </td>
+          <td>—</td>
+          <td>—</td>
+          <td class="sh-amount" [style.color]="s.contributedAmount < 0 ? 'var(--re)' : null">{{ s.contributedAmount | currencyAr: true }}</td>
+          <td>
+            <div class="d-flex align-items-center gap-2">
+              <span class="sh-pct">{{ s.ownedPercentage | number: '1.0-2' }}%</span>
+              <div class="sh-bar">
+                <div class="sh-bar-fill sh-bar-company" [style.width.%]="s.ownedPercentage > 0 ? s.ownedPercentage : 0"></div>
+              </div>
+            </div>
+          </td>
+          <td>—</td>
+          <td>—</td>
+          <td>—</td>
+          <td>—</td>
+          <td>—</td>
+          <td class="text-center sh-company-note">للعرض فقط</td>
+        </tr>
+        } @else {
         <tr>
           <td class="sh-id">#{{ s.id }}</td>
           <td>
@@ -180,6 +246,7 @@
             </div>
           </td>
         </tr>
+        }
         } @empty {
         <tr>
           <td colspan="11" class="sh-empty">
@@ -378,6 +445,10 @@
 <!-- ── SHAREHOLDER STATEMENT MODAL ── -->
 <app-shareholder-statement-modal [open]="statementOpen()" [shareholder]="statementShareholder()"
   (closed)="closeStatement()" />
+
+<!-- ── COMPANY BALANCE DEPOSIT / WITHDRAW ── -->
+<app-company-balance-modal [open]="companyTxOpen()" [type]="companyTxType()"
+  [currentBalance]="summary()?.companyBalance ?? 0" (closed)="closeCompanyTx()" (saved)="onCompanyTxSaved()" />
 
 <!-- ── COMPANY PROFIT STATEMENT MODAL ── -->
 <app-company-profit-statement-modal [open]="companyStatementOpen()"

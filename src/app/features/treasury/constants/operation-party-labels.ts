@@ -20,6 +20,20 @@ export const OPERATION_PARTY_BADGE: Readonly<Record<OperationPartyType, BadgeTyp
   Treasury: 'ok',
 };
 
+/**
+ * Arabic labels for `TreasuryOperation.referenceType` values that carry no
+ * counterparty (shown in the "الجهة" column instead of a party badge).
+ * Unknown types fall back to "—". Edit/delete visibility is driven solely by
+ * the server's `canEdit` / `canDelete` flags — never by this map.
+ */
+export const OPERATION_REFERENCE_LABELS: Readonly<Record<string, string>> = {
+  CompanyCapitalAdjustment: 'تعديل رصيد الشركة',
+};
+
+export const OPERATION_REFERENCE_BADGE: Readonly<Record<string, BadgeType>> = {
+  CompanyCapitalAdjustment: 'purple',
+};
+
 /** Shown on edit/delete buttons of operations owned by another screen. */
 export const OPERATION_LOCKED_HINT = 'هذه العملية تُعدَّل من شاشتها الأصلية';
 

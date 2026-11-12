@@ -31,7 +31,7 @@ import { LookupItem } from '../../../../core/models/lookup.model';
  *
  * A `Receipt` raises the account balance, a `Payment` lowers it. The live
  * projected balance under the amount field gives the operator an at-a-glance
- * confirmation before they commit — and turns red if a payment would overdraw.
+ * confirmation before they commit — negative balances are allowed and render red.
  */
 @Component({
   selector: 'app-sub-account-voucher-modal',
@@ -85,10 +85,6 @@ export class SubAccountVoucherModalComponent {
         : -this.draftAmount();
     return this.currentBalance() + delta;
   });
-
-  protected readonly wouldOverdraw = computed(
-    () => this.draftType() === VoucherType.Payment && this.projectedBalance() < 0,
-  );
 
   // ── form ──
   protected readonly form = this.fb.nonNullable.group({

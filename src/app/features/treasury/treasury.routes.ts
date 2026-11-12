@@ -1,5 +1,7 @@
 import { Routes } from '@angular/router';
 import { denyRolesGuard } from '../../core/guards/role.guard';
+import { accessGuard } from '../../core/guards/access.guard';
+import { PERMISSIONS } from '../../core/constants/permissions.const';
 
 export const treasuryRoutes: Routes = [
   {
@@ -25,5 +27,37 @@ export const treasuryRoutes: Routes = [
       import('./pages/shareholders/shareholders.component').then(
         (m) => m.ShareholdersComponent
       ),
+  },
+  {
+    path: 'shareholders/classifications',
+    canActivate: [
+      denyRolesGuard(['Representative']),
+      accessGuard({
+        anyPermission: [
+          PERMISSIONS.shareholdersView,
+          PERMISSIONS.shareholdersFullAccess,
+        ],
+      }),
+    ],
+    loadComponent: () =>
+      import('./pages/capital-classifications/capital-classifications.component').then(
+        (m) => m.CapitalClassificationsComponent
+      ),
+  },
+  {
+    path: 'shareholders/classifications/:id',
+    canActivate: [
+      denyRolesGuard(['Representative']),
+      accessGuard({
+        anyPermission: [
+          PERMISSIONS.shareholdersView,
+          PERMISSIONS.shareholdersFullAccess,
+        ],
+      }),
+    ],
+    loadComponent: () =>
+      import(
+        './pages/capital-classification-statement/capital-classification-statement.component'
+      ).then((m) => m.CapitalClassificationStatementComponent),
   },
 ];

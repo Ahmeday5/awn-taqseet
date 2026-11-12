@@ -21,8 +21,9 @@ export const PERMISSIONS = {
   vouchersFullAccess:    'Vouchers.FullAccess',
   subAccountsView:       'SubAccounts.View',
   subAccountsFullAccess: 'SubAccounts.FullAccess',
+  shareholdersView:       'Shareholders.View',
   shareholdersFullAccess: 'Shareholders.FullAccess',
-  userManagement:        'UserManagement',
+  userManagement:       'UserManagement',
 } as const;
 
 export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -55,6 +56,7 @@ export const ROLE_PERMISSIONS: Readonly<
     PERMISSIONS.treasuryView,
     PERMISSIONS.treasuryFullAccess,
     PERMISSIONS.vouchersFullAccess,
+    PERMISSIONS.shareholdersView,
     PERMISSIONS.shareholdersFullAccess,
     PERMISSIONS.userManagement,
   ],
@@ -71,6 +73,7 @@ export const ROLE_PERMISSIONS: Readonly<
     PERMISSIONS.treasuryView,
     PERMISSIONS.treasuryFullAccess,
     PERMISSIONS.vouchersFullAccess,
+    PERMISSIONS.shareholdersView,
     PERMISSIONS.shareholdersFullAccess,
     PERMISSIONS.userManagement,
   ],

@@ -8,6 +8,8 @@ export type CompanyProfitReferenceType =
   | 'ProfitDistribution'
   | 'TransferIn'
   | 'TransferOut'
+  /** Manual deposit/withdrawal against the company balance. */
+  | 'CompanyCapitalAdjustment'
   // Forward-compatible: unknown types fall back to the raw value.
   | (string & {});
 

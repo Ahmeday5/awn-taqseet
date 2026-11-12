@@ -9,6 +9,14 @@
         <div class="cl-hero-stat-label">عملاء متأخرون</div>
         <div class="cl-hero-stat-val cl-hero-overdue">{{ overdueClientsCount() }}</div>
       </div>
+      @if (pendingActivationCount() > 0) {
+      <div>
+        <div class="cl-hero-stat-label">في انتظار التفعيل</div>
+        <div class="cl-hero-stat-val cl-hero-pending" title="عملاء مسجّلون من التطبيق في هذه الصفحة بانتظار التفعيل">
+          {{ pendingActivationCount() }}
+        </div>
+      </div>
+      }
       <div>
         <div class="cl-hero-stat-label">الصفحة الحالية</div>
         <div class="cl-hero-stat-val">{{ pageIndex() }} / {{ totalPages() || 1 }}</div>
@@ -112,13 +120,14 @@
           <th class="cl-w-rating">التقييم</th>
           <th class="cl-w-status">الحالة</th>
           <th class="cl-w-status">الأقساط المتأخرة</th>
+          <th class="cl-w-status">حالة الحساب</th>
           <th class="cl-w-amount">مبلغ التأخير</th>
           <th class="cl-w-actions text-center">الإجراءات</th>
         </tr>
       </thead>
       <tbody>
         @for (c of clients(); track c.id) {
-        <tr class="cl-row-clickable" (click)="openProfile(c.id)">
+        <tr class="cl-row-clickable" [class.cl-row-inactive]="!c.isActive" (click)="openProfile(c.id)">
           <td class="cl-id">#{{ c.id }}</td>
           <td>
             <div class="cl-row-name">
@@ -190,6 +199,9 @@
             <span class="text-muted">—</span>
             }
           </td>
+          <td>
+            <app-badge [text]="c.isActive ? 'مفعّل' : 'غير مفعّل'" [type]="c.isActive ? 'ok' : 'warn'" />
+          </td>
           <td (click)="$event.stopPropagation()">
             <div class="d-flex gap-1 justify-content-center">
               <button
@@ -233,6 +245,34 @@
               <button
                 *appHasPermission="PERMS.clientsFullAccess"
                 type="button"
+                class="btn btn-sm"
+                [class.btn-outline-success]="!c.isActive"
+                [class.btn-outline-warning]="c.isActive"
+                [title]="c.isActive ? 'تعطيل حساب العميل' : 'تفعيل حساب العميل'"
+                [attr.aria-label]="c.isActive ? 'تعطيل حساب العميل' : 'تفعيل حساب العميل'"
+                [disabled]="isToggling(c.id)"
+                (click)="toggleActive(c)"
+              >
+                @if (isToggling(c.id)) {
+                  <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                } @else if (c.isActive) {
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="12" cy="12" r="9"/>
+                    <path d="m5.7 5.7 12.6 12.6"/>
+                  </svg>
+                } @else {
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+                    <circle cx="9" cy="7" r="4"/>
+                    <polyline points="16 11 18 13 22 9"/>
+                  </svg>
+                }
+              </button>
+              <button
+                *appHasPermission="PERMS.clientsFullAccess"
+                type="button"
                 class="btn btn-sm btn-outline-secondary"
                 title="تغيير كلمة المرور"
                 aria-label="تغيير كلمة مرور العميل"
@@ -268,7 +308,7 @@
         </tr>
         } @empty {
         <tr>
-          <td colspan="13" class="cl-empty">
+          <td colspan="15" class="cl-empty">
             @if (loading()) {
             <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
             <span>جاري تحميل العملاء...</span>

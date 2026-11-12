@@ -1,0 +1,125 @@
+<!-- ── PAGE HEADER ── -->
+<div class="pgh">
+  <div>
+    <div class="pgt">كشف حساب التصنيف — {{ title() }}</div>
+    <div class="pgs">
+      <a routerLink="/treasury/shareholders" class="ccs-link">المساهمون</a>
+      <span aria-hidden="true"> / </span>
+      <a routerLink="/treasury/shareholders/classifications" class="ccs-link">تصنيفات رأس المال</a>
+      @if (statement()?.classification?.notes; as notes) {
+        <span aria-hidden="true"> · </span>{{ notes }}
+      }
+    </div>
+  </div>
+  <a class="btn btn-sm" routerLink="/treasury/shareholders/classifications">رجوع للتصنيفات</a>
+</div>
+
+<!-- ── SUMMARY CARDS ── -->
+@if (statement(); as st) {
+  <div class="ccs-cards">
+    <div class="sc">
+      <div class="sc-l">إجمالي الإيداعات</div>
+      <div class="sc-v" style="color:var(--gr)">{{ st.totalDeposits | currencyAr: true }}</div>
+    </div>
+    <div class="sc">
+      <div class="sc-l">إجمالي السحوبات</div>
+      <div class="sc-v" style="color:var(--re)">{{ st.totalWithdrawals | currencyAr: true }}</div>
+    </div>
+    <div class="sc">
+      <div class="sc-l">الصافي</div>
+      <div class="sc-v" [style.color]="st.netBalance < 0 ? 'var(--re)' : 'var(--bl)'">{{ st.netBalance | currencyAr: true }}</div>
+    </div>
+  </div>
+}
+
+<!-- ── FILTERS ── -->
+<div class="ccs-filter">
+  <div>
+    <label class="ccs-filter-label">من تاريخ</label>
+    <input type="date" class="form-control form-control-sm" [value]="fromDate()"
+      (change)="fromDate.set($any($event.target).value)" />
+  </div>
+  <div>
+    <label class="ccs-filter-label">إلى تاريخ</label>
+    <input type="date" class="form-control form-control-sm" [value]="toDate()"
+      (change)="toDate.set($any($event.target).value)" />
+  </div>
+  <div class="d-flex gap-1 align-items-end">
+    <button type="button" class="btn btn-sm btn-bl" [disabled]="loading()" (click)="applyDates()">تطبيق</button>
+    @if (hasFilters()) {
+      <button type="button" class="btn btn-sm" [disabled]="loading()" (click)="clearDates()">مسح</button>
+    }
+    <button type="button" class="btn btn-sm d-inline-flex align-items-center gap-1" [disabled]="loading()" (click)="refresh()">
+      @if (loading()) {
+        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+      }
+      <span>تحديث</span>
+    </button>
+  </div>
+</div>
+
+@if (error(); as msg) {
+  <div class="alert alert-danger my-2" role="alert" style="font-size:12px">{{ msg }}</div>
+}
+
+<!-- ── ENTRIES ── -->
+<div class="card">
+  <div class="tw mb-0">
+    <table>
+      <thead>
+        <tr>
+          <th>التاريخ</th>
+          <th>رقم السند</th>
+          <th>المساهم</th>
+          <th>النوع</th>
+          <th class="text-end">المبلغ</th>
+          <th class="text-end">الرصيد</th>
+          <th>الخزينة</th>
+          <th>ملاحظات</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (e of entries(); track e.id) {
+          <tr>
+            <td class="fs-10">{{ e.date | dateAr: 'short' }}</td>
+            <td class="ccs-voucher" [title]="e.voucherNumber">{{ e.voucherNumber || '—' }}</td>
+            <td class="fw-600">{{ e.shareholderName || '—' }}</td>
+            <td>{{ e.transactionTypeAr || e.transactionType }}</td>
+            <td class="text-end fw-600" [style.color]="e.signedAmount < 0 ? 'var(--re)' : 'var(--gr)'">
+              {{ e.signedAmount < 0 ? '−' : '+' }}{{ e.amount | currencyAr: true }}
+            </td>
+            <td class="text-end fw-600" [style.color]="e.runningBalance < 0 ? 'var(--re)' : null">
+              {{ e.runningBalance | currencyAr: true }}
+            </td>
+            <td class="ccs-muted">{{ e.treasuryName || '—' }}</td>
+            <td class="ccs-notes" [title]="e.notes ?? ''">{{ e.notes || '—' }}</td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="8" class="ccs-empty">
+              @if (loading()) {
+                جاري التحميل...
+              } @else if (hasFilters()) {
+                لا توجد حركات في هذه الفترة.
+              } @else {
+                لا توجد حركات رأس مال على هذا التصنيف بعد.
+              }
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+
+  @if (count() > 0) {
+    <app-pagination
+      [pageIndex]="pageIndex()"
+      [pageSize]="pageSize()"
+      [count]="count()"
+      [totalPages]="totalPages()"
+      [disabled]="loading()"
+      (pageChange)="onPageChange($event)"
+      (pageSizeChange)="onPageSizeChange($event)"
+    />
+  }
+</div>
