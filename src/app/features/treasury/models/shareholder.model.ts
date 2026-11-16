@@ -19,8 +19,10 @@ export interface Shareholder {
   createdAt: string;
   /**
    * True only for the synthetic "الشركة" row (id 0) the API prepends on page 1.
-   * Display-only: no edit/delete/statement/capital actions, and it is not
-   * counted in the pagination `count`. Its `contributedAmount` may be negative.
+   * Its `ownedPercentage` is a real profit share (the company earns like a
+   * shareholder). No edit/delete/capital actions — its statement is the
+   * company statement — and it is not counted in the pagination `count`.
+   * Its `contributedAmount` (the company balance) may be negative.
    */
   isCompany?: boolean;
 }
@@ -34,31 +36,70 @@ export interface ShareholdersSummary {
   totalIncludingCompany: number;
 }
 
-/** VoucherType on the wire: 1 = Receipt (إيداع), 2 = Payment (سحب). */
+/**
+ * Voucher type on the wire (sent and received as a string):
+ * `Receipt` = إيداع (money into the treasury, company balance up),
+ * `Payment` = سحب (money out of the treasury, company balance down).
+ */
 export enum CompanyBalanceTxType {
-  Deposit = 1,
-  Withdrawal = 2,
+  Deposit = 'Receipt',
+  Withdrawal = 'Payment',
 }
 
-/** POST/PUT `shareholders/company-balance/transactions[/{voucherId}]` body. */
+/** Movement direction as labelled by the API on the response. */
+export type CompanyBalanceTxDirection = 'Deposit' | 'Withdrawal';
+
+/**
+ * POST/PUT `shareholders/company-balance/transactions[/{id}]` body.
+ *
+ * PUT semantics: `treasuryId: null` keeps the current treasury, while
+ * `capitalClassificationId: null` CLEARS the classification — so an edit
+ * must always resend the current classification to keep it.
+ */
 export interface CompanyBalanceTransactionPayload {
   type: CompanyBalanceTxType;
+  /** > 0 */
   amount: number;
-  /** `yyyy-MM-dd` — omitted to let the server default to today. */
-  date?: string;
-  notes?: string;
+  /** `yyyy-MM-dd`; null lets the server default to today. */
+  date: string | null;
+  /** Required on create ("الخزنة مطلوبة."). */
+  treasuryId: number | null;
+  capitalClassificationId: number | null;
+  notes: string | null;
 }
 
+/** `CompanyBalanceTransactionDto` — response of POST / PUT. */
 export interface CompanyBalanceTransaction {
   id: number;
   voucherNumber: string;
-  type: CompanyBalanceTxType | string;
+  type: CompanyBalanceTxType;
+  direction: CompanyBalanceTxDirection;
+  amount: number;
+  /** Company balance right after this movement. May be negative. */
+  balanceAfter: number;
+  date: string;
+  /** Null for legacy movements recorded before treasuries were required. */
+  treasuryId: number | null;
+  treasuryName: string | null;
+  capitalClassificationId: number | null;
+  capitalClassificationName: string | null;
+  notes: string | null;
+  userName: string | null;
+}
+
+/**
+ * The fields the company-balance form needs to edit an existing movement —
+ * decoupled from any one DTO so it can be built from a statement line.
+ */
+export interface CompanyBalanceTxEditTarget {
+  id: number;
+  voucherNumber: string | null;
+  type: CompanyBalanceTxType;
   amount: number;
   date: string;
-  treasuryId: number;
-  treasuryName: string;
-  /** May be negative — withdrawals are never blocked. */
-  companyBalanceAfter: number;
+  treasuryId: number | null;
+  treasuryName: string | null;
+  capitalClassificationId: number | null;
   notes: string | null;
 }
 

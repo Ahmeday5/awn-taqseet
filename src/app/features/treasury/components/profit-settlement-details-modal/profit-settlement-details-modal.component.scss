@@ -72,35 +72,6 @@
   font-size: 12px;
 }
 
-/* ── voucher chip ── */
-.psd-voucher {
-  appearance: none;
-  background: var(--bl-l);
-  border: 1px dashed transparent;
-  border-radius: var(--r);
-  padding: 3px 7px;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  color: var(--bl);
-  cursor: pointer;
-  font-family: inherit;
-  max-width: 100%;
-
-  span {
-    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    font-size: 10.5px;
-    font-weight: 600;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  svg { flex-shrink: 0; opacity: 0.7; }
-
-  &:hover { border-color: var(--bl); }
-}
-
 /* ── utilities ── */
 .fw-600 { font-weight: 600; }
 .cv-ltr { direction: ltr; unicode-bidi: isolate; }

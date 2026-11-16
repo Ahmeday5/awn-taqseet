@@ -10,16 +10,14 @@ import {
 } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
 
+import { VoucherNumberComponent } from '../../../../shared/components/voucher-number/voucher-number.component';
 import { ModalComponent } from '../../../../shared/components/modal/modal.component';
 import { CurrencyArPipe } from '../../../../shared/pipes/currency-ar.pipe';
 import { DateArPipe } from '../../../../shared/pipes/date-ar.pipe';
 import { ApiError } from '../../../../core/models/api-response.model';
-import { ToastService } from '../../../../core/services/toast.service';
 
 import { ShareholdersService } from '../../services/shareholders.service';
 import { ProfitSettlement } from '../../models/profit-settlement.model';
-
-const VOUCHER_PREFIX_LEN = 18;
 
 /**
  * Read-only details for one executed profit settlement.
@@ -31,13 +29,13 @@ const VOUCHER_PREFIX_LEN = 18;
  *
  * Fetches the full record (header + per-shareholder lines with their issued
  * voucher numbers) whenever it opens with an id. Voucher numbers are 70+ chars,
- * so they're truncated in the table and copyable on click.
+ * so they're shown shortened and copyable on click (`app-voucher-number`).
  */
 @Component({
   selector: 'app-profit-settlement-details-modal',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DecimalPipe, ModalComponent, CurrencyArPipe, DateArPipe],
+  imports: [DecimalPipe, ModalComponent, VoucherNumberComponent, CurrencyArPipe, DateArPipe],
   templateUrl: './profit-settlement-details-modal.component.html',
   styleUrl: './profit-settlement-details-modal.component.scss',
 })
@@ -51,7 +49,6 @@ export class ProfitSettlementDetailsModalComponent {
 
   // ── deps ──
   private readonly service = inject(ShareholdersService);
-  private readonly toast = inject(ToastService);
 
   // ── state ──
   protected readonly settlement = signal<ProfitSettlement | null>(null);
@@ -76,26 +73,6 @@ export class ProfitSettlementDetailsModalComponent {
 
   protected close(): void {
     this.closed.emit();
-  }
-
-  protected shortVoucher(value: string | undefined): string {
-    if (!value) return '—';
-    return value.length > VOUCHER_PREFIX_LEN
-      ? `${value.slice(0, VOUCHER_PREFIX_LEN)}…`
-      : value;
-  }
-
-  protected copyVoucher(value: string | undefined): void {
-    if (!value) return;
-    const clipboard = navigator.clipboard;
-    if (clipboard?.writeText) {
-      clipboard.writeText(value).then(
-        () => this.toast.success('تم نسخ رقم السند'),
-        () => this.toast.error('تعذّر النسخ'),
-      );
-    } else {
-      this.toast.error('النسخ غير مدعوم في هذا المتصفح');
-    }
   }
 
   // ─────────── internals ───────────

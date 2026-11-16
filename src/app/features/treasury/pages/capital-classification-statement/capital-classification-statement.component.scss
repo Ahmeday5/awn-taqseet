@@ -29,15 +29,10 @@
   &:hover { text-decoration: underline; }
 }
 
-.ccs-voucher {
-  direction: ltr;
-  unicode-bidi: isolate;
-  font-family: monospace;
+.ccs-sc-sub {
+  margin-top: 3px;
   font-size: 10px;
-  max-width: 140px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  color: var(--txt3);
 }
 
 .ccs-muted { font-size: 10.5px; color: var(--txt2); }

@@ -186,7 +186,12 @@
           <td>—</td>
           <td>—</td>
           <td>—</td>
-          <td class="text-center sh-company-note">للعرض فقط</td>
+          <td>
+            <div class="d-flex gap-1 justify-content-center align-items-center">
+              <button type="button" class="btn btn-sm" title="كشف حساب الشركة"
+                (click)="openCompanyStatement()">كشف حساب</button>
+            </div>
+          </td>
         </tr>
         } @else {
         <tr>

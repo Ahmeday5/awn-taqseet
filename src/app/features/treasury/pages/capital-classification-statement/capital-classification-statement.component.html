@@ -11,7 +11,19 @@
       }
     </div>
   </div>
-  <a class="btn btn-sm" routerLink="/treasury/shareholders/classifications">رجوع للتصنيفات</a>
+  <div class="d-flex gap-2 flex-wrap">
+    <button
+      type="button"
+      class="btn btn-sm btn-wa d-inline-flex align-items-center gap-1"
+      [disabled]="loading() || !statement()"
+      title="مشاركة ملخص الكشف عبر واتساب — تختار المستلم من واتساب"
+      (click)="shareOnWhatsapp()"
+    >
+      <i class="fa-brands fa-whatsapp" aria-hidden="true"></i>
+      <span>مشاركة واتساب</span>
+    </button>
+    <a class="btn btn-sm" routerLink="/treasury/shareholders/classifications">رجوع للتصنيفات</a>
+  </div>
 </div>
 
 <!-- ── SUMMARY CARDS ── -->
@@ -20,13 +32,15 @@
     <div class="sc">
       <div class="sc-l">إجمالي الإيداعات</div>
       <div class="sc-v" style="color:var(--gr)">{{ st.totalDeposits | currencyAr: true }}</div>
+      <div class="ccs-sc-sub">{{ isPeriodApplied() ? periodText() : 'كل الحركات' }}</div>
     </div>
     <div class="sc">
       <div class="sc-l">إجمالي السحوبات</div>
       <div class="sc-v" style="color:var(--re)">{{ st.totalWithdrawals | currencyAr: true }}</div>
+      <div class="ccs-sc-sub">{{ isPeriodApplied() ? periodText() : 'كل الحركات' }}</div>
     </div>
     <div class="sc">
-      <div class="sc-l">الصافي</div>
+      <div class="sc-l">{{ netTitle() }}</div>
       <div class="sc-v" [style.color]="st.netBalance < 0 ? 'var(--re)' : 'var(--bl)'">{{ st.netBalance | currencyAr: true }}</div>
     </div>
   </div>
@@ -82,7 +96,7 @@
         @for (e of entries(); track e.id) {
           <tr>
             <td class="fs-10">{{ e.date | dateAr: 'short' }}</td>
-            <td class="ccs-voucher" [title]="e.voucherNumber">{{ e.voucherNumber || '—' }}</td>
+            <td><app-voucher-number [value]="e.voucherNumber" /></td>
             <td class="fw-600">{{ e.shareholderName || '—' }}</td>
             <td>{{ e.transactionTypeAr || e.transactionType }}</td>
             <td class="text-end fw-600" [style.color]="e.signedAmount < 0 ? 'var(--re)' : 'var(--gr)'">

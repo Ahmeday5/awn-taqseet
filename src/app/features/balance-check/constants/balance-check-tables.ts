@@ -11,7 +11,10 @@ import {
   BalanceSupplierDto,
   BalanceTreasuryDto,
   BalanceWarehouseDto,
+  isCompanyShareholderLine,
 } from '../models/balance-check.model';
+
+const COMPANY_LINE_BADGE = { label: 'رصيد الشركة', type: 'teal' as BadgeType } as const;
 
 function treasuryBadge(type: string): { label: string; type: BadgeType } {
   const known = type as TreasuryType;
@@ -92,7 +95,12 @@ export const SUB_ACCOUNTS_TABLE: DetailTableConfig<BalanceSubAccountDto> = {
 
 export const SHAREHOLDERS_TABLE: DetailTableConfig<BalanceShareholderDto> = {
   columns: [
-    { id: 'name', header: 'الشريك', value: (r) => r.name },
+    {
+      id: 'name',
+      header: 'الشريك',
+      value: (r) => r.name,
+      badge: (r) => (isCompanyShareholderLine(r) ? COMPANY_LINE_BADGE : null),
+    },
     {
       id: 'contributedAmount',
       header: 'المساهمة',
@@ -102,7 +110,7 @@ export const SHAREHOLDERS_TABLE: DetailTableConfig<BalanceShareholderDto> = {
     },
   ],
   trackBy: (r) => r.id,
-  searchText: (r) => r.name,
+  searchText: (r) => (isCompanyShareholderLine(r) ? `${r.name} ${COMPANY_LINE_BADGE.label}` : r.name),
   searchPlaceholder: 'ابحث باسم الشريك...',
   emptyText: 'لا يوجد شركاء.',
   defaultSort: { columnId: 'contributedAmount', direction: 'desc' },

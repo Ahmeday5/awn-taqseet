@@ -1,9 +1,9 @@
 <app-modal
   [open]="open()"
-  title="كشف حساب أرباح الشركة"
+  title="كشف حساب الشركة"
   size="xl"
-  [closeOnBackdrop]="!loading()"
-  [closeOnEsc]="!loading()"
+  [closeOnBackdrop]="dismissible()"
+  [closeOnEsc]="dismissible()"
   (closed)="close()"
 >
   <!-- ── SUMMARY CARDS ── -->
@@ -12,14 +12,22 @@
       <div class="cps-sc cps-sc-recv">
         <div class="cps-sc-label">إجمالي المستلم</div>
         <div class="cps-sc-val">{{ st.totalReceived | currencyAr: true }}</div>
+        <div class="cps-sc-sub">{{ isPeriodApplied() ? periodText() : 'كل الحركات' }}</div>
       </div>
       <div class="cps-sc cps-sc-paid">
         <div class="cps-sc-label">إجمالي المدفوع</div>
         <div class="cps-sc-val">{{ st.totalPaid | currencyAr: true }}</div>
+        <div class="cps-sc-sub">{{ isPeriodApplied() ? periodText() : 'كل الحركات' }}</div>
+      </div>
+      <div class="cps-sc cps-sc-net">
+        <div class="cps-sc-label">{{ netTitle() }}</div>
+        <div class="cps-sc-val" [class.cps-neg]="netBalance() < 0">{{ netBalance() | currencyAr: true }}</div>
+        <div class="cps-sc-sub">المستلم − المدفوع</div>
       </div>
       <div class="cps-sc cps-sc-bal">
-        <div class="cps-sc-label">الرصيد الحالي</div>
+        <div class="cps-sc-label">رصيد الشركة الحالي</div>
         <div class="cps-sc-val" [class.cps-neg]="st.currentBalance < 0">{{ st.currentBalance | currencyAr: true }}</div>
+        <div class="cps-sc-sub">لا يتأثر بفلتر التاريخ</div>
       </div>
     </div>
 
@@ -27,7 +35,7 @@
     @if (diff !== null) {
       <div class="alert alert-warning cps-diff-warning" role="alert">
         <span aria-hidden="true">⚠️</span>
-        يوجد فرق غير مفسر في رصيد الخزنة:
+        يوجد فرق غير مفسر في رصيد الشركة:
         <strong class="cps-diff-amount">{{ diff | moneyAr }}</strong>
       </div>
     }
@@ -36,8 +44,9 @@
   <!-- ── DATE FILTER ── -->
   <div class="cps-filter">
     <div class="cps-filter-group">
-      <label class="cps-filter-label">من تاريخ</label>
+      <label class="cps-filter-label" for="cps-from">من تاريخ</label>
       <input
+        id="cps-from"
         type="date"
         class="form-control form-control-sm"
         [value]="fromDate()"
@@ -45,8 +54,9 @@
       />
     </div>
     <div class="cps-filter-group">
-      <label class="cps-filter-label">إلى تاريخ</label>
+      <label class="cps-filter-label" for="cps-to">إلى تاريخ</label>
       <input
+        id="cps-to"
         type="date"
         class="form-control form-control-sm"
         [value]="toDate()"
@@ -92,20 +102,27 @@
       <thead>
         <tr>
           <th class="cps-w-date">التاريخ</th>
+          <th class="cps-w-voucher">رقم السند</th>
           <th class="cps-w-type">النوع</th>
-          <th class="cps-w-ref">المرجع</th>
-          <th>المساهم / الخزنة</th>
+          <th class="cps-w-ref">البيان</th>
+          <th>المساهم</th>
+          <th>الخزينة</th>
+          <th>التصنيف</th>
           <th class="cps-w-amount">المبلغ</th>
           <th class="cps-w-amount">الرصيد بعد</th>
           <th>ملاحظات</th>
+          @if (showActions()) {
+            <th class="cps-w-actions text-center">الإجراءات</th>
+          }
         </tr>
       </thead>
       <tbody>
-        <!-- Key on source+id: a voucher id and a treasury-movement id can collide. -->
+        <!-- Key on source+id: ids from different sources can collide. -->
         @for (row of rows(); track row.key) {
           @let e = row.entry;
-          <tr [class.cps-transfer-row]="row.isTransfer">
+          <tr [class.cps-transfer-row]="row.isTransfer" [class.cps-share-row]="row.isProfitShare">
             <td class="cps-date">{{ e.date | dateAr: 'short' }}</td>
+            <td><app-voucher-number [value]="e.voucherNumber" /></td>
             <td>
               <app-badge [text]="row.voucherLabel" [type]="row.voucherBadge" />
             </td>
@@ -120,7 +137,9 @@
                 <app-badge [text]="row.referenceLabel" [type]="row.referenceBadge" />
               }
             </td>
-            <td class="cps-shareholder" [class.cps-treasury]="row.isTransfer">{{ row.counterparty }}</td>
+            <td class="cps-shareholder">{{ row.shareholder }}</td>
+            <td class="cps-treasury">{{ row.treasury }}</td>
+            <td class="cps-muted">{{ row.classification }}</td>
             <td class="cps-amount" [class.cps-in]="row.inflow" [class.cps-out]="!row.inflow">
               {{ row.inflow ? '+' : '−' }}{{ e.amount | currencyAr: true }}
             </td>
@@ -128,13 +147,32 @@
               {{ e.balanceAfter | currencyAr: true }}
             </td>
             <td class="cps-notes" [title]="e.notes ?? ''">{{ e.notes || '—' }}</td>
+            @if (showActions()) {
+              <td class="text-center">
+                @if (e.isEditable) {
+                  <div class="d-inline-flex gap-1">
+                    <button type="button" class="btn btn-sm btn-bl"
+                      [disabled]="deletingKey() !== null" (click)="openEdit(row)">تعديل</button>
+                    <button type="button" class="btn btn-sm btn-re d-inline-flex align-items-center gap-1"
+                      [disabled]="deletingKey() !== null" (click)="confirmDelete(row)">
+                      @if (deletingKey() === row.key) {
+                        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                      }
+                      <span>حذف</span>
+                    </button>
+                  </div>
+                } @else {
+                  <span class="cps-muted">—</span>
+                }
+              </td>
+            }
           </tr>
         } @empty {
           <tr>
-            <td colspan="7" class="text-center py-4" style="color:var(--txt3);font-size:12px">
+            <td [attr.colspan]="columnCount()" class="text-center py-4" style="color:var(--txt3);font-size:12px">
               @if (loading()) {
                 جاري التحميل...
-              } @else if (hasFilters()) {
+              } @else if (isPeriodApplied()) {
                 لا توجد حركات في هذه الفترة.
               } @else {
                 لا توجد حركات بعد.
@@ -159,6 +197,15 @@
   }
 
   <ng-container modal-footer>
-    <button type="button" class="btn" (click)="close()">إغلاق</button>
+    <button type="button" class="btn" [disabled]="editOpen()" (click)="close()">إغلاق</button>
   </ng-container>
 </app-modal>
+
+<!-- ── EDIT A MANUAL DEPOSIT / WITHDRAWAL ── -->
+<app-company-balance-modal
+  [open]="editOpen()"
+  [transaction]="editTarget()"
+  [currentBalance]="statement()?.currentBalance ?? 0"
+  (closed)="closeEdit()"
+  (saved)="onEdited()"
+/>

@@ -47,6 +47,15 @@
 
   <!-- ── SUMMARY CARDS ── -->
   @if (statement(); as st) {
+    @if (isPeriodApplied()) {
+      <div class="shst-period-note" role="note">
+        الإجماليات محسوبة للفترة <strong>{{ periodText() }}</strong> فقط
+        — الأرباح المستحقة والمتاح من الأرباح الموزعة أرصدة حالية.
+        @if (classificationName()) {
+          فلتر التصنيف يؤثر على الجدول فقط.
+        }
+      </div>
+    }
     <div class="shst-summary">
       <div class="shst-sc shst-sc-dep">
         <div class="shst-sc-label">إجمالي الإيداعات</div>
@@ -57,7 +66,7 @@
         <div class="shst-sc-val">{{ st.totalCapitalWithdrawn | currencyAr: true }}</div>
       </div>
       <div class="shst-sc shst-sc-net">
-        <div class="shst-sc-label">صافي رأس المال</div>
+        <div class="shst-sc-label">{{ netTitle() }}</div>
         <div class="shst-sc-val" [style.color]="st.netCapitalBalance < 0 ? 'var(--re)' : null">{{ st.netCapitalBalance | currencyAr: true }}</div>
         <div class="shst-sc-sub">إيداعات + رسملة − سحوبات</div>
       </div>

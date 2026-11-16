@@ -50,10 +50,22 @@ export interface BalanceAssetsDto {
   total: number;
 }
 
+/**
+ * Id of the synthetic "الشركة" line the API puts first in
+ * `obligations.shareholders` — its `contributedAmount` is the company balance.
+ */
+export const COMPANY_SHAREHOLDER_ID = 0;
+
 export interface BalanceShareholderDto {
+  /** `COMPANY_SHAREHOLDER_ID` (0) for the company's own line. */
   id: number;
   name: string;
+  /** May be negative on the company line. */
   contributedAmount: number;
+}
+
+export function isCompanyShareholderLine(row: BalanceShareholderDto): boolean {
+  return row.id === COMPANY_SHAREHOLDER_ID;
 }
 
 /**
@@ -77,8 +89,12 @@ export interface BalanceSupplierDto {
 }
 
 export interface BalanceObligationsDto {
+  /** Shareholders' capital + the company balance. */
   shareholdersCapitalTotal: number;
+  /** Starts with the company line (`id: 0`), then the real shareholders. */
   shareholders: BalanceShareholderDto[];
+  /** The company balance alone (already inside the total and the list). */
+  companyBalance: number;
   profit: BalanceProfitDto;
   supplierPayablesTotal: number;
   suppliers: BalanceSupplierDto[];

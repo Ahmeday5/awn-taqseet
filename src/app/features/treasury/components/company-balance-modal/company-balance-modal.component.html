@@ -7,10 +7,39 @@
   (closed)="close()"
 >
   <form [formGroup]="form" (ngSubmit)="submit()" novalidate autocomplete="off">
+    <!-- What this movement actually does to the money. -->
+    <div class="alert mb-3 py-2" role="note" style="font-size:12px"
+      [class.alert-success]="isDeposit()" [class.alert-warning]="!isDeposit()">
+      @if (isDeposit()) {
+        الإيداع يُدخل المبلغ فعليًا في <strong>الخزينة المختارة</strong> ويزيد رصيد الشركة بنفس القيمة.
+      } @else {
+        السحب يُخرج المبلغ فعليًا من <strong>الخزينة المختارة</strong> ويقلل رصيد الشركة بنفس القيمة
+        (قد يصبح رصيد الشركة بالسالب).
+      }
+    </div>
+
     <div class="row g-3">
+      @if (isEdit()) {
+        <div class="col-12">
+          <label class="form-label">نوع العملية <span class="text-danger">*</span></label>
+          <div class="btn-group w-100" role="radiogroup" aria-label="نوع العملية">
+            @for (opt of typeOptions; track opt.value) {
+              <input type="radio" class="btn-check" formControlName="type"
+                [id]="'cb-type-' + opt.value" [value]="opt.value" />
+              <label class="btn btn-sm" [for]="'cb-type-' + opt.value"
+                [class.btn-gr]="opt.value === CompanyBalanceTxType.Deposit && isDeposit()"
+                [class.btn-re]="opt.value === CompanyBalanceTxType.Withdrawal && !isDeposit()">
+                {{ opt.label }}
+              </label>
+            }
+          </div>
+        </div>
+      }
+
       <div class="col-12 col-md-6">
-        <label class="form-label">المبلغ <span class="text-danger">*</span></label>
+        <label class="form-label" for="cb-amount">المبلغ <span class="text-danger">*</span></label>
         <input
+          id="cb-amount"
           type="number"
           class="form-control"
           formControlName="amount"
@@ -18,20 +47,60 @@
           step="0.01"
           dir="ltr"
           placeholder="0"
-          (input)="onAmountInput($any($event.target).value)"
         />
         <app-form-error [control]="form.controls.amount" label="المبلغ" />
       </div>
 
       <div class="col-12 col-md-6">
-        <label class="form-label">التاريخ <span class="text-danger">*</span></label>
-        <input type="date" class="form-control" formControlName="date" dir="ltr" />
+        <label class="form-label" for="cb-date">التاريخ <span class="text-danger">*</span></label>
+        <input id="cb-date" type="date" class="form-control" formControlName="date" dir="ltr" />
         <app-form-error [control]="form.controls.date" label="التاريخ" />
       </div>
 
+      <div class="col-12 col-md-6">
+        <label class="form-label">
+          الخزينة
+          @if (!isLegacy()) {
+            <span class="text-danger">*</span>
+          }
+        </label>
+        <app-searchable-select
+          formControlName="treasuryId"
+          [placeholder]="lookupsLoading() ? 'جاري التحميل…' : (isLegacy() ? 'بدون خزينة (عملية قديمة)' : 'اختر الخزينة')"
+          searchPlaceholder="ابحث باسم الخزينة…"
+          [options]="treasuryOptions()"
+        />
+        <app-form-error [control]="form.controls.treasuryId" label="الخزينة" />
+        @if (isLegacy()) {
+          <div class="form-text" style="font-size:11px">
+            عملية قديمة مسجلة بدون خزينة — اتركها فارغة للإبقاء عليها كما هي.
+          </div>
+        }
+      </div>
+
+      <div class="col-12 col-md-6">
+        <label class="form-label">التصنيف</label>
+        <app-searchable-select
+          formControlName="capitalClassificationId"
+          [placeholder]="lookupsLoading() ? 'جاري التحميل…' : 'بدون تصنيف (اختياري)'"
+          searchPlaceholder="ابحث باسم التصنيف…"
+          [options]="classificationOptions()"
+        />
+      </div>
+
+      @if (lookupsError(); as msg) {
+        <div class="col-12">
+          <div class="alert alert-warning py-2 mb-0 d-flex align-items-center justify-content-between gap-2"
+            role="alert" style="font-size:11px">
+            <span>{{ msg }}</span>
+            <button type="button" class="btn btn-sm" (click)="retryLookups()">إعادة المحاولة</button>
+          </div>
+        </div>
+      }
+
       <div class="col-12">
-        <label class="form-label">ملاحظات</label>
-        <textarea class="form-control" rows="2" formControlName="notes" placeholder="(اختياري)"></textarea>
+        <label class="form-label" for="cb-notes">ملاحظات</label>
+        <textarea id="cb-notes" class="form-control" rows="2" formControlName="notes" placeholder="(اختياري)"></textarea>
       </div>
     </div>
 
@@ -41,7 +110,7 @@
         <strong [style.color]="currentBalance() < 0 ? 'var(--re)' : null">{{ currentBalance() | currencyAr: true }}</strong>
       </div>
       <div>
-        <span style="color:var(--txt3)">الرصيد بعد العملية:</span>
+        <span style="color:var(--txt3)">الرصيد بعد {{ isEdit() ? 'التعديل' : 'العملية' }}:</span>
         <strong [style.color]="projected() < 0 ? 'var(--re)' : (isDeposit() ? 'var(--gr)' : null)">{{ projected() | currencyAr: true }}</strong>
       </div>
     </div>
@@ -56,15 +125,16 @@
     <button
       type="button"
       class="btn d-inline-flex align-items-center gap-2"
-      [class.btn-gr]="isDeposit()"
-      [class.btn-re]="!isDeposit()"
+      [class.btn-bl]="isEdit()"
+      [class.btn-gr]="!isEdit() && isDeposit()"
+      [class.btn-re]="!isEdit() && !isDeposit()"
       [disabled]="submitting() || form.invalid"
       (click)="submit()"
     >
       @if (submitting()) {
         <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
       }
-      <span>{{ submitting() ? 'جاري الحفظ...' : (isDeposit() ? 'تسجيل الإيداع' : 'تسجيل السحب') }}</span>
+      <span>{{ submitLabel() }}</span>
     </button>
   </ng-container>
 </app-modal>

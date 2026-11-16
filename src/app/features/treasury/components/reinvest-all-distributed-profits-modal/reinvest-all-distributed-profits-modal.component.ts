@@ -10,6 +10,7 @@ import {
 } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 
+import { VoucherNumberComponent } from '../../../../shared/components/voucher-number/voucher-number.component';
 import { ModalComponent } from '../../../../shared/components/modal/modal.component';
 import { CurrencyArPipe } from '../../../../shared/pipes/currency-ar.pipe';
 import { todayIsoDate } from '../../../../shared/utils/date-iso.util';
@@ -43,7 +44,7 @@ const FALLBACK_ERROR = 'تعذّر إضافة الأرباح الموزعة لر
   selector: 'app-reinvest-all-distributed-profits-modal',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, ModalComponent, CurrencyArPipe],
+  imports: [ReactiveFormsModule, ModalComponent, VoucherNumberComponent, CurrencyArPipe],
   templateUrl: './reinvest-all-distributed-profits-modal.component.html',
   styleUrl: './reinvest-all-distributed-profits-modal.component.scss',
 })

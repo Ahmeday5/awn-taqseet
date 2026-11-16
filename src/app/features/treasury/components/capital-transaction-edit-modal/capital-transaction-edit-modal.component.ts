@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   effect,
   inject,
   input,
@@ -14,6 +15,7 @@ import {
   SearchableSelectComponent,
   SearchableSelectOption,
 } from '../../../../shared/components/searchable-select/searchable-select.component';
+import { shortenVoucherNumber } from '../../../../shared/components/voucher-number/voucher-number.component';
 import { ToastService } from '../../../../core/services/toast.service';
 import { ApiError } from '../../../../core/models/api-response.model';
 import { apiErrorToMessage } from '../../../../core/utils/api-error.util';
@@ -57,6 +59,11 @@ export class CapitalTransactionEditModalComponent {
 
   protected readonly submitting = signal(false);
   protected readonly typeOptions = CAPITAL_TX_TYPE_OPTIONS;
+
+  protected readonly title = computed(() => {
+    const voucher = shortenVoucherNumber(this.transaction()?.voucherNumber);
+    return voucher ? `تعديل عملية رأس مال — ${voucher}` : 'تعديل عملية رأس مال';
+  });
 
   protected readonly form = this.fb.nonNullable.group({
     type: [CapitalTransactionType.Receipt, [Validators.required]],

@@ -29,6 +29,12 @@ import { PdfExportService } from '../../../../core/services/pdf-export.service';
 import { formatPrintCurrency, formatPrintDate } from '../../../../core/utils/print-format.util';
 import { WhatsappSendButtonComponent } from '../../../../shared/components/whatsapp-send-button/whatsapp-send-button.component';
 import { formatMoneyAr, formatPercentAr } from '../../../../shared/utils/number-format.util';
+import {
+  DateRange,
+  EMPTY_DATE_RANGE,
+  hasDateRange,
+  periodLabel,
+} from '../../../../shared/utils/period-label.util';
 
 import { ShareholdersService } from '../../services/shareholders.service';
 import { Shareholder } from '../../models/shareholder.model';
@@ -50,7 +56,6 @@ import { WithdrawDistributedProfitModalComponent } from '../withdraw-distributed
 import { CapitalClassification } from '../../models/capital-classification.model';
 
 const DEFAULT_PAGE_SIZE = 10;
-const VOUCHER_PREFIX_LEN = 18;
 
 @Component({
   selector: 'app-shareholder-statement-modal',
@@ -97,6 +102,12 @@ export class ShareholderStatementModalComponent {
   // ── date filters (UI state — applied on explicit click) ──
   protected readonly fromDate = signal('');
   protected readonly toDate = signal('');
+  /**
+   * The date range the shown totals were fetched with. The API scopes every
+   * total (deposits, withdrawals, capitalised/distributed profit, net) to it;
+   * the type/classification filters only narrow the table.
+   */
+  private readonly appliedRange = signal<DateRange>(EMPTY_DATE_RANGE);
   /** Optional capital-classification filter (applied immediately). */
   protected readonly classificationId = signal<number | null>(null);
   protected readonly classifications = signal<CapitalClassification[]>([]);
@@ -161,6 +172,12 @@ export class ShareholderStatementModalComponent {
     () => !!this.fromDate() || !!this.toDate() || this.classificationId() != null,
   );
 
+  protected readonly isPeriodApplied = computed(() => hasDateRange(this.appliedRange()));
+  protected readonly periodText = computed(() => periodLabel(this.appliedRange()));
+  protected readonly netTitle = computed(() =>
+    this.isPeriodApplied() ? `صافي الرصيد ${this.periodText()}` : 'صافي رأس المال',
+  );
+
   protected readonly classificationName = computed(() => {
     const id = this.classificationId();
     return id == null
@@ -183,6 +200,7 @@ export class ShareholderStatementModalComponent {
         this.error.set(null);
         this.fromDate.set('');
         this.toDate.set('');
+        this.appliedRange.set(EMPTY_DATE_RANGE);
         this.classificationId.set(null);
         this.pageIndex.set(1);
         this.fetch(sh.id, 1, this.pageSize(), false);
@@ -331,13 +349,6 @@ export class ShareholderStatementModalComponent {
     return affectsCapital(type);
   }
 
-  protected shortVoucher(value: string | undefined): string {
-    if (!value) return '—';
-    return value.length > VOUCHER_PREFIX_LEN
-      ? `${value.slice(0, VOUCHER_PREFIX_LEN)}…`
-      : value;
-  }
-
   // ─────────── whatsapp ───────────
 
   protected readonly whatsappCaption = computed(() => {
@@ -396,7 +407,7 @@ export class ShareholderStatementModalComponent {
         { label: 'رأس المال', value: formatPrintCurrency(hero.contributedAmount), emphasis: true },
         { label: 'نسبة الملكية', value: formatPercentAr(hero.ownedPercentage), tone: 'accent' },
         { label: 'الأرباح المستحقة', value: formatPrintCurrency(hero.accruedProfit), tone: hero.accruedProfit < 0 ? 'negative' : 'positive' },
-        ...(st ? [{ label: 'صافي رأس المال', value: formatPrintCurrency(st.netCapitalBalance), tone: (st.netCapitalBalance < 0 ? 'negative' : 'accent') as 'negative' | 'accent' }] : []),
+        ...(st ? [{ label: this.netTitle(), value: formatPrintCurrency(st.netCapitalBalance), tone: (st.netCapitalBalance < 0 ? 'negative' : 'accent') as 'negative' | 'accent' }] : []),
         { label: 'الأرباح الموزعة المتاحة', value: formatPrintCurrency(this.distributedProfitBalance()) },
         ...(st ? [{ label: 'إجمالي الأرباح الموزعة', value: formatPrintCurrency(st.totalProfitDistributed) }] : []),
       ],
@@ -463,6 +474,7 @@ export class ShareholderStatementModalComponent {
     stream$.subscribe({
       next: (res) => {
         this.statement.set(res);
+        this.appliedRange.set({ fromDate: query.fromDate, toDate: query.toDate });
         this.count.set(res.entries.count ?? 0);
         this.totalPages.set(res.entries.totalPages ?? 0);
         this.loading.set(false);

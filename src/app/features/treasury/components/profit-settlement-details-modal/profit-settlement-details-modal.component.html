@@ -23,14 +23,7 @@
         <div class="psd-head-item">
           <dt>سند قبض حصة الشركة</dt>
           <dd>
-            <button
-              type="button"
-              class="psd-voucher"
-              [title]="s.companyReceiptVoucherNumber + ' — اضغط للنسخ'"
-              (click)="copyVoucher(s.companyReceiptVoucherNumber)"
-            >
-              <span class="cv-ltr">{{ shortVoucher(s.companyReceiptVoucherNumber) }}</span>
-            </button>
+            <app-voucher-number [value]="s.companyReceiptVoucherNumber" />
           </dd>
         </div>
       }
@@ -68,23 +61,7 @@
               </td>
               <td class="text-end psd-amount">{{ line.amount | currencyAr: true }}</td>
               <td>
-                @if (line.voucherNumber) {
-                  <button
-                    type="button"
-                    class="psd-voucher"
-                    [title]="line.voucherNumber + ' — اضغط للنسخ'"
-                    (click)="copyVoucher(line.voucherNumber)"
-                  >
-                    <span class="cv-ltr">{{ shortVoucher(line.voucherNumber) }}</span>
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                         stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                      <rect x="9" y="9" width="11" height="11" rx="2" />
-                      <path d="M5 15V5a2 2 0 0 1 2-2h10" />
-                    </svg>
-                  </button>
-                } @else {
-                  <span class="psd-muted">—</span>
-                }
+                <app-voucher-number [value]="line.voucherNumber" />
               </td>
             </tr>
           }

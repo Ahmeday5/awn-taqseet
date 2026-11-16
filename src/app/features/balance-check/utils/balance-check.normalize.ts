@@ -55,6 +55,7 @@ function normalizeObligations(
   return {
     shareholdersCapitalTotal: num(raw?.shareholdersCapitalTotal),
     shareholders: list(raw?.shareholders),
+    companyBalance: num(raw?.companyBalance),
     profit: {
       grossContractsProfit: num(profit.grossContractsProfit),
       revenues: num(profit.revenues),

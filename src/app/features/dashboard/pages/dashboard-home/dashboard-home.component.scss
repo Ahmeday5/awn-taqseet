@@ -391,6 +391,17 @@
   white-space: nowrap;
 }
 
+.fs-tile-sub {
+  margin-top: 2px;
+  font-size: 10px;
+  color: var(--txt3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  &--neg { color: var(--re); }
+}
+
 /* ── STATES ── */
 .fs-loading,
 .fs-empty {

@@ -97,9 +97,9 @@ export const API_ENDPOINTS = {
     /** POST: deposit/withdraw directly against the company's own balance. */
     companyBalanceTransactions:
       'dashboard/shareholders/company-balance/transactions',
-    /** PUT edit / DELETE a single company-balance voucher. */
-    companyBalanceTransactionById: (voucherId: number) =>
-      `dashboard/shareholders/company-balance/transactions/${voucherId}`,
+    /** PUT edit / DELETE a manual deposit/withdrawal (the `id` of an `isEditable` company-statement line). */
+    companyBalanceTransactionById: (id: number) =>
+      `dashboard/shareholders/company-balance/transactions/${id}`,
     /** POST (Admin, one-off, idempotent): fold historical profit-treasury drift back into the company balance. */
     reconcileHistoricalCompanyBalance:
       'dashboard/shareholders/company-balance/reconcile-historical',

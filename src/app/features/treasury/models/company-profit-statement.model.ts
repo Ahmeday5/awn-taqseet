@@ -1,7 +1,14 @@
+import { PagedResponse } from '../../../core/models/api-response.model';
+
 export type CompanyProfitVoucherType = 'Receipt' | 'Payment';
 
-/** Origin of a statement line: a voucher, or a movement between treasuries. */
-export type CompanyProfitEntrySource = 'Voucher' | 'Transfer';
+/**
+ * Origin of a statement line:
+ * - `Voucher`     a voucher (settlement / capitalisation / manual deposit or withdrawal)
+ * - `Transfer`    a movement between treasuries
+ * - `ProfitShare` the company's own cut of a booked profit (or of its reversal)
+ */
+export type CompanyProfitEntrySource = 'Voucher' | 'Transfer' | 'ProfitShare';
 
 export type CompanyProfitReferenceType =
   | 'ShareholderProfitCapitalization'
@@ -15,11 +22,12 @@ export type CompanyProfitReferenceType =
 
 export interface CompanyProfitEntry {
   /**
-   * Voucher id for `Voucher` lines, treasury-movement id for `Transfer`
-   * lines — the two can collide, so never use `id` alone as a key, and
-   * never link a `Transfer` id to the voucher page.
+   * Source-scoped id — a voucher id, a treasury-movement id or a profit-share
+   * id. Ids from different sources can collide, so never key on `id` alone.
+   * For `isEditable` lines it is the id the company-balance PUT/DELETE take.
    */
   id: number;
+  voucherNumber: string | null;
   date: string;
   source: CompanyProfitEntrySource;
   voucherType: CompanyProfitVoucherType;
@@ -30,29 +38,34 @@ export interface CompanyProfitEntry {
   /** Set on `Voucher` lines tied to a shareholder; null otherwise. */
   shareholderId: number | null;
   shareholderName: string | null;
-  /** Set on `Transfer` lines only: the treasury on the other side of the move. */
+  /**
+   * Treasury the money came from / went to — set for manual deposits and
+   * withdrawals and for treasury transfers. Null on legacy movements.
+   */
+  counterpartyTreasuryId: number | null;
   counterpartyTreasuryName: string | null;
+  capitalClassificationId: number | null;
+  capitalClassificationName: string | null;
+  /** True only for manual deposits/withdrawals — the lines users may edit or delete. */
+  isEditable: boolean;
   notes: string | null;
 }
 
 export interface CompanyProfitStatement {
-  /** Includes incoming treasury transfers. */
+  /** Within the requested period when one is given, else over every movement. */
   totalReceived: number;
-  /** Includes outgoing treasury transfers. */
+  /** Within the requested period when one is given, else over every movement. */
   totalPaid: number;
+  /** `totalReceived − totalPaid` — same scope as the totals. */
+  netBalance: number;
+  /** The company balance right now — never affected by the date filter. */
   currentBalance: number;
   /**
-   * currentBalance − (totalReceived − totalPaid). Expected to be 0; anything
-   * else signals a data inconsistency the user must see.
+   * Always computed over every movement. Expected to be 0; anything else
+   * signals a data inconsistency the user must see.
    */
   unexplainedDifference: number;
-  entries: {
-    pageIndex: number;
-    pageSize: number;
-    count: number;
-    totalPages: number;
-    data: CompanyProfitEntry[];
-  };
+  entries: PagedResponse<CompanyProfitEntry>;
 }
 
 export interface CompanyProfitStatementQuery {

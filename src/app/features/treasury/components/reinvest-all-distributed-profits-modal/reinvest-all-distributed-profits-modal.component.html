@@ -35,7 +35,7 @@
               <td class="fw-600">{{ line.shareholderName }}</td>
               <td class="text-end rad-accent fw-600">{{ line.amount | currencyAr: true }}</td>
               <td class="text-end">{{ line.contributedAmountAfter | currencyAr: true }}</td>
-              <td class="rad-voucher" dir="ltr" [title]="line.voucherNumber">{{ line.voucherNumber || '—' }}</td>
+              <td><app-voucher-number [value]="line.voucherNumber" /></td>
             </tr>
           }
         </tbody>

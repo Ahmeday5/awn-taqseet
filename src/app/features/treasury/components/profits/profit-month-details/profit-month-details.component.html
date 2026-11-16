@@ -9,6 +9,9 @@
   − أرباح المناديب <ng-container *ngTemplateOutlet="amt; context: { $implicit: r.representativesProfit }" />
   = ربح المساهمين <ng-container *ngTemplateOutlet="amt; context: { $implicit: r.shareholdersPool }" />،
   اتقسم: حصة الشركة <ng-container *ngTemplateOutlet="amt; context: { $implicit: r.companyProfit }" />
+  @if (companyLine(); as c) {
+    (منها نصيبها من رصيدها <ng-container *ngTemplateOutlet="amt; context: { $implicit: c.poolShare }" />)
+  }
   وحصة المساهمين <ng-container *ngTemplateOutlet="amt; context: { $implicit: r.shareholdersProfit }" />
 </p>
 
@@ -69,7 +72,7 @@
     <app-profit-info field="ShareholdersPool" />
   </h3>
   <app-profit-shareholders-table
-    [rows]="r.shareholders"
+    [rows]="shareholderRows()"
     [columns]="shareholderColumns"
     [totals]="shareholderTotals()"
   />

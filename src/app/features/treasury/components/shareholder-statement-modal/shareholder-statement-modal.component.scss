@@ -110,6 +110,16 @@
   flex-basis: 220px;
 }
 
+.shst-period-note {
+  margin-bottom: 8px;
+  padding: 6px 10px;
+  border-radius: var(--r, 8px);
+  background: var(--bl-l);
+  color: var(--txt2);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
 .shst-sc-sub {
   font-size: 9.5px;
   color: var(--txt3);

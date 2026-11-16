@@ -73,6 +73,18 @@ import { ShareholderTreasuryLookup } from '../models/shareholder-treasury-lookup
  */
 const SHAREHOLDERS_CACHE_KEY = 'shareholder';
 const TREASURY_CACHE_KEY = 'treasur';
+/**
+ * `dashboard/company-profit-statement` matches neither key above, yet every
+ * capital/profit write moves the company balance — so it gets its own scope.
+ */
+const COMPANY_STATEMENT_CACHE_KEY = 'company-profit-statement';
+
+/** Scopes dropped by any write that moves money or shifts ownership %. */
+const MONEY_WRITE_SCOPES = [
+  SHAREHOLDERS_CACHE_KEY,
+  TREASURY_CACHE_KEY,
+  COMPANY_STATEMENT_CACHE_KEY,
+] as const;
 
 /** Short TTL: ownership percentages shift whenever any partner is added/removed. */
 const SHAREHOLDERS_TTL_MS = 60 * 1000;
@@ -112,7 +124,7 @@ export class ShareholdersService {
       payload,
       {
         context: withInlineHandling(
-          withCacheInvalidate([SHAREHOLDERS_CACHE_KEY, TREASURY_CACHE_KEY]),
+          withCacheInvalidate(MONEY_WRITE_SCOPES),
         ),
       },
     );
@@ -127,7 +139,7 @@ export class ShareholdersService {
       payload,
       {
         context: withInlineHandling(
-          withCacheInvalidate([SHAREHOLDERS_CACHE_KEY, TREASURY_CACHE_KEY]),
+          withCacheInvalidate(MONEY_WRITE_SCOPES),
         ),
       },
     );
@@ -138,7 +150,7 @@ export class ShareholdersService {
       API_ENDPOINTS.shareholders.byId(id),
       {
         context: withInlineHandling(
-          withCacheInvalidate([SHAREHOLDERS_CACHE_KEY, TREASURY_CACHE_KEY]),
+          withCacheInvalidate(MONEY_WRITE_SCOPES),
         ),
       },
     );
@@ -195,7 +207,7 @@ export class ShareholdersService {
       payload,
       {
         context: withInlineHandling(
-          withCacheInvalidate([SHAREHOLDERS_CACHE_KEY, TREASURY_CACHE_KEY]),
+          withCacheInvalidate(MONEY_WRITE_SCOPES),
         ),
       },
     );
@@ -255,7 +267,7 @@ export class ShareholdersService {
       payload,
       {
         context: withInlineHandling(
-          withCacheInvalidate([SHAREHOLDERS_CACHE_KEY, TREASURY_CACHE_KEY]),
+          withCacheInvalidate(MONEY_WRITE_SCOPES),
         ),
       },
     );
@@ -276,7 +288,7 @@ export class ShareholdersService {
       payload,
       {
         context: withInlineHandling(
-          withCacheInvalidate([SHAREHOLDERS_CACHE_KEY, TREASURY_CACHE_KEY]),
+          withCacheInvalidate(MONEY_WRITE_SCOPES),
         ),
       },
     );
@@ -296,7 +308,7 @@ export class ShareholdersService {
       payload,
       {
         context: withInlineHandling(
-          withCacheInvalidate([SHAREHOLDERS_CACHE_KEY, TREASURY_CACHE_KEY]),
+          withCacheInvalidate(MONEY_WRITE_SCOPES),
         ),
       },
     );
@@ -315,7 +327,7 @@ export class ShareholdersService {
       payload,
       {
         context: withInlineHandling(
-          withCacheInvalidate([SHAREHOLDERS_CACHE_KEY, TREASURY_CACHE_KEY]),
+          withCacheInvalidate(MONEY_WRITE_SCOPES),
         ),
       },
     );
@@ -333,7 +345,7 @@ export class ShareholdersService {
       payload,
       {
         context: withInlineHandling(
-          withCacheInvalidate([SHAREHOLDERS_CACHE_KEY, TREASURY_CACHE_KEY]),
+          withCacheInvalidate(MONEY_WRITE_SCOPES),
         ),
       },
     );
@@ -353,7 +365,7 @@ export class ShareholdersService {
       payload,
       {
         context: withInlineHandling(
-          withCacheInvalidate([SHAREHOLDERS_CACHE_KEY, TREASURY_CACHE_KEY]),
+          withCacheInvalidate(MONEY_WRITE_SCOPES),
         ),
       },
     );
@@ -373,7 +385,7 @@ export class ShareholdersService {
       payload,
       {
         context: withInlineHandling(
-          withCacheInvalidate([SHAREHOLDERS_CACHE_KEY, TREASURY_CACHE_KEY]),
+          withCacheInvalidate(MONEY_WRITE_SCOPES),
         ),
       },
     );
@@ -394,7 +406,7 @@ export class ShareholdersService {
       API_ENDPOINTS.shareholders.capitalTransactionById(shareholderId, transactionId),
       {
         context: withInlineHandling(
-          withCacheInvalidate([SHAREHOLDERS_CACHE_KEY, TREASURY_CACHE_KEY]),
+          withCacheInvalidate(MONEY_WRITE_SCOPES),
         ),
       },
     );
@@ -521,9 +533,10 @@ export class ShareholdersService {
   }
 
   /**
-   * Deposit/withdraw against the company's own balance. Withdrawals are never
-   * blocked (the balance may go negative). Ownership % shifts, and a treasury
-   * moves, so both scopes are invalidated.
+   * Deposit/withdraw against the company's own balance, moving real money
+   * in/out of the chosen treasury. Withdrawals are never blocked (the
+   * balance may go negative). Ownership % shifts and a treasury moves, so
+   * both scopes are invalidated.
    */
   createCompanyBalanceTransaction(
     payload: CompanyBalanceTransactionPayload,
@@ -533,33 +546,39 @@ export class ShareholdersService {
       payload,
       {
         context: withInlineHandling(
-          withCacheInvalidate([SHAREHOLDERS_CACHE_KEY, TREASURY_CACHE_KEY]),
+          withCacheInvalidate(MONEY_WRITE_SCOPES),
         ),
       },
     );
   }
 
+  /**
+   * Edits a manual deposit/withdrawal (`isEditable` statement lines only).
+   * `treasuryId: null` keeps the current treasury; `capitalClassificationId:
+   * null` clears the classification — callers resend the current one to keep it.
+   */
   updateCompanyBalanceTransaction(
-    voucherId: number,
+    id: number,
     payload: CompanyBalanceTransactionPayload,
   ): Observable<CompanyBalanceTransaction> {
     return this.api.put<CompanyBalanceTransaction>(
-      API_ENDPOINTS.shareholders.companyBalanceTransactionById(voucherId),
+      API_ENDPOINTS.shareholders.companyBalanceTransactionById(id),
       payload,
       {
         context: withInlineHandling(
-          withCacheInvalidate([SHAREHOLDERS_CACHE_KEY, TREASURY_CACHE_KEY]),
+          withCacheInvalidate(MONEY_WRITE_SCOPES),
         ),
       },
     );
   }
 
-  deleteCompanyBalanceTransaction(voucherId: number): Observable<unknown> {
+  /** Deletes a manual deposit/withdrawal, reversing its effect on the company balance and its treasury. */
+  deleteCompanyBalanceTransaction(id: number): Observable<unknown> {
     return this.api.delete<unknown>(
-      API_ENDPOINTS.shareholders.companyBalanceTransactionById(voucherId),
+      API_ENDPOINTS.shareholders.companyBalanceTransactionById(id),
       {
         context: withInlineHandling(
-          withCacheInvalidate([SHAREHOLDERS_CACHE_KEY, TREASURY_CACHE_KEY]),
+          withCacheInvalidate(MONEY_WRITE_SCOPES),
         ),
       },
     );
@@ -572,7 +591,7 @@ export class ShareholdersService {
       {},
       {
         context: withInlineHandling(
-          withCacheInvalidate([SHAREHOLDERS_CACHE_KEY, TREASURY_CACHE_KEY]),
+          withCacheInvalidate(MONEY_WRITE_SCOPES),
         ),
       },
     );

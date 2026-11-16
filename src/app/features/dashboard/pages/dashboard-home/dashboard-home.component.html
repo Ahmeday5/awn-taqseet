@@ -217,6 +217,11 @@
       <div class="fs-tile-body">
         <div class="fs-tile-label">إجمالي رأس مال الشركاء</div>
         <div class="fs-tile-value">{{ f.totalShareholdersCapital | currencyAr: true }}</div>
+        @if (f.companyBalance != null) {
+          <div class="fs-tile-sub" [class.fs-tile-sub--neg]="f.companyBalance < 0">
+            منها رصيد الشركة: {{ f.companyBalance | currencyAr: true }}
+          </div>
+        }
       </div>
     </div>
 

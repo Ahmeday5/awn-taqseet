@@ -28,8 +28,15 @@
   letter-spacing: -0.3px;
 }
 
+.cps-sc-sub {
+  margin-top: 3px;
+  font-size: 10px;
+  color: var(--txt3);
+}
+
 .cps-sc-recv .cps-sc-val { color: var(--gr); }
 .cps-sc-paid .cps-sc-val { color: var(--re, #c0392b); }
+.cps-sc-net  .cps-sc-val { color: var(--te); }
 .cps-sc-bal  .cps-sc-val { color: var(--bl); }
 
 // ── date filter ──
@@ -69,6 +76,13 @@
 .cps-w-type   { width: 80px; }
 .cps-w-ref    { width: 150px; }
 .cps-w-amount { width: 120px; text-align: end; }
+.cps-w-voucher { width: 130px; }
+.cps-w-actions { width: 120px; }
+
+.cps-muted {
+  font-size: 11px;
+  color: var(--txt3);
+}
 
 .cps-date {
   font-size: 10.5px;
@@ -133,8 +147,16 @@
 }
 
 .cps-treasury {
+  font-size: 11.5px;
   color: var(--bl);
   font-weight: 600;
+  white-space: nowrap;
+}
+
+// ── the company's own profit shares ──
+
+.cps-share-row td {
+  background: var(--te-l);
 }
 
 .cps-in  { color: var(--gr); }
