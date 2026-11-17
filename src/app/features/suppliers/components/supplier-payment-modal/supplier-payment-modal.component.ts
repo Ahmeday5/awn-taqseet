@@ -23,8 +23,21 @@ import { LookupItem } from '../../../../core/models/lookup.model';
 
 import { TreasuryService } from '../../../treasury/services/treasury.service';
 import { SuppliersService } from '../../services/suppliers.service';
-import { Supplier, SupplierPaymentResponse } from '../../models/supplier.model';
+import {
+  Supplier,
+  SupplierPaymentPayload,
+  SupplierPaymentResponse,
+  SupplierStatementPayment,
+} from '../../models/supplier.model';
 
+/**
+ * Records a direct payment to a supplier, or edits an existing one when
+ * `payment` is set (same form, prefilled, sent as PUT).
+ *
+ * In edit mode the amount isn't capped client-side: the owed balance is
+ * scoped to the payment's representative, so the server validates it and
+ * its Arabic 400 message is shown as-is.
+ */
 @Component({
   selector: 'app-supplier-payment-modal',
   standalone: true,
@@ -43,6 +56,8 @@ export class SupplierPaymentModalComponent {
   // ── inputs ──
   readonly open = input.required<boolean>();
   readonly supplier = input<Supplier | null>(null);
+  /** Payment being edited; null = record a new one. */
+  readonly payment = input<SupplierStatementPayment | null>(null);
 
   // ── outputs ──
   readonly closed = output<void>();
@@ -62,6 +77,13 @@ export class SupplierPaymentModalComponent {
   protected readonly draftAmount = signal(0);
 
   // ── derived ──
+  protected readonly isEdit = computed(() => this.payment() !== null);
+
+  protected readonly submitLabel = computed(() => {
+    if (this.isEdit()) return this.submitting() ? 'جاري الحفظ...' : 'حفظ التعديل';
+    return this.submitting() ? 'جاري التسجيل...' : 'تسجيل الدفعة';
+  });
+
   protected readonly remaining = computed(
     () => this.supplier()?.remainingAmount ?? 0,
   );
@@ -71,12 +93,18 @@ export class SupplierPaymentModalComponent {
   );
 
   protected readonly amountExceedsRemaining = computed(
-    () => this.draftAmount() > this.remaining() + 1e-9,
+    () => !this.isEdit() && this.draftAmount() > this.remaining() + 1e-9,
   );
 
-  protected readonly treasuryOptions = computed<SearchableSelectOption[]>(() =>
-    this.treasuries().map((t) => ({ value: t.id, label: t.name })),
-  );
+  /** Keeps the edited payment's treasury selectable even if the lookup omits it. */
+  protected readonly treasuryOptions = computed<SearchableSelectOption[]>(() => {
+    const options = this.treasuries().map((t) => ({ value: t.id, label: t.name }));
+    const p = this.payment();
+    if (p?.treasuryId != null && !options.some((o) => o.value === p.treasuryId)) {
+      options.push({ value: p.treasuryId, label: p.treasuryName ?? `#${p.treasuryId}` });
+    }
+    return options;
+  });
 
   // ── form ──
   protected readonly form = this.fb.nonNullable.group({
@@ -91,15 +119,16 @@ export class SupplierPaymentModalComponent {
       () => {
         const sup = this.supplier();
         if (!this.open() || !sup) return;
-        const remaining = sup.remainingAmount ?? 0;
+        const p = this.payment();
+        const amount = p ? p.amount : (sup.remainingAmount ?? 0);
         this.serverError.set(null);
         this.submitting.set(false);
-        this.draftAmount.set(remaining);
+        this.draftAmount.set(amount);
         this.form.reset({
-          treasuryId: null,
-          amount: remaining,
-          paymentDate: this.todayISO(),
-          notes: '',
+          treasuryId: p?.treasuryId ?? null,
+          amount,
+          paymentDate: p?.date ? p.date.slice(0, 10) : this.todayISO(),
+          notes: p?.notes ?? '',
         });
         this.loadTreasuries();
       },
@@ -130,29 +159,37 @@ export class SupplierPaymentModalComponent {
     }
 
     const raw = this.form.getRawValue();
+    const payload: SupplierPaymentPayload = {
+      treasuryId: Number(raw.treasuryId),
+      amount: Number(raw.amount),
+      paymentDate: raw.paymentDate,
+      notes: (raw.notes ?? '').trim() || undefined,
+    };
+    const payment = this.payment();
+    const request$ = payment
+      ? this.suppliersService.updatePayment(sup.id, payment.id, payload)
+      : this.suppliersService.pay(sup.id, payload);
+
     this.serverError.set(null);
     this.submitting.set(true);
 
-    this.suppliersService
-      .pay(sup.id, {
-        treasuryId: Number(raw.treasuryId),
-        amount: Number(raw.amount),
-        paymentDate: raw.paymentDate,
-        notes: (raw.notes ?? '').trim() || undefined,
-      })
-      .subscribe({
-        next: (res) => {
-          this.submitting.set(false);
-          this.toast.success(
-            `تم تسجيل دفعة ${Number(raw.amount).toLocaleString('ar-EG')} ج.م للمورد ${res.supplierName}`,
-          );
-          this.paid.emit(res);
-        },
-        error: (err: ApiError) => {
-          this.submitting.set(false);
-          this.serverError.set(err.message || 'تعذّر تسجيل الدفعة');
-        },
-      });
+    request$.subscribe({
+      next: (res) => {
+        this.submitting.set(false);
+        this.toast.success(
+          payment
+            ? `تم تعديل الدفعة بنجاح${res?.voucherNumber ? ` — سند رقم ${res.voucherNumber}` : ''}`
+            : `تم تسجيل دفعة ${Number(raw.amount).toLocaleString('ar-EG')} ج.م للمورد ${res.supplierName}`,
+        );
+        this.paid.emit(res);
+      },
+      error: (err: ApiError) => {
+        this.submitting.set(false);
+        this.serverError.set(
+          err.message || (payment ? 'تعذّر تعديل الدفعة' : 'تعذّر تسجيل الدفعة'),
+        );
+      },
+    });
   }
 
   protected close(): void {

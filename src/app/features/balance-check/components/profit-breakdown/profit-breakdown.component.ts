@@ -10,7 +10,7 @@ import { buildProfitLines } from '../../utils/balance-check.view-model';
 
 /**
  * Net-profit derivation, one line per term:
- *   ربح العقود + الإيرادات − المصروفات − الأرباح الموزعة − عمولة المناديب
+ *   أرباح العقود + الإيرادات − المصروفات − الموزع − عمولات المناديب المدفوعة
  * Bars are scaled to the largest term so relative weight reads at a glance.
  */
 @Component({

@@ -1,4 +1,4 @@
-<ol class="pb-list" aria-label="تفصيل صافي الأرباح">
+<ol class="pb-list" aria-label="تفصيل الأرباح الحالية">
   @for (line of lines(); track line.key) {
     <li class="pb-line" [class.pb-line--minus]="line.sign < 0">
       <span class="pb-sign" aria-hidden="true">{{ line.sign > 0 ? '+' : '−' }}</span>
@@ -19,6 +19,6 @@
 
 <div class="pb-total" [class.pb-total--loss]="profit().totalProfit < 0">
   <span class="pb-sign" aria-hidden="true">=</span>
-  <span class="pb-total__label">صافي الأرباح</span>
+  <span class="pb-total__label">الأرباح الحالية</span>
   <span class="pb-total__amount">{{ profit().totalProfit | moneyAr }}</span>
 </div>

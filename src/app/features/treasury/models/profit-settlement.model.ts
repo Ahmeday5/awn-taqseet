@@ -53,6 +53,11 @@ export interface ProfitSettlementPreview {
   totalShareholdersShare: number;
   /** Sum of all companyShare values — what flows into the company's profits treasury. */
   totalCompanyShare: number;
+  /**
+   * The company's own pending profit (from its balance) that the next
+   * distribution/capitalisation posts alongside `totalCompanyShare`.
+   */
+  companyOwnProfit?: number;
   lines: ProfitSettlementPreviewLines;
 }
 
@@ -86,10 +91,27 @@ export interface ProfitSettlement {
   profitsTreasuryName: string;
   totalAmount: number;
   treasuryBalanceAfter?: number;
-  /** The single receipt voucher booking the company's share into its balance. */
+  /** Company share of the shareholders' profits posted by this settlement. */
+  totalCompanyShare?: number;
+  /** The company's own pending profit posted by this settlement. */
+  companyOwnProfit?: number;
+  /**
+   * The single company voucher posting `totalCompanyShare + companyOwnProfit`
+   * to its balance — a payment voucher when that total is a loss.
+   */
   companyReceiptVoucherNumber?: string | null;
   notes: string | null;
   lines: ProfitSettlementLine[];
+}
+
+/**
+ * What a distribution/capitalisation posted to the company balance — shared
+ * by the `profit-settlement` and `capitalize-all-profits` responses.
+ */
+export interface CompanyPosting {
+  totalCompanyShare?: number;
+  companyOwnProfit?: number;
+  companyReceiptVoucherNumber?: string | null;
 }
 
 /** Row shape returned by `GET /profit-settlements` (paged). */

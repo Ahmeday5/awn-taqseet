@@ -21,7 +21,7 @@
       </div>
       @if (s.companyReceiptVoucherNumber) {
         <div class="psd-head-item">
-          <dt>سند قبض حصة الشركة</dt>
+          <dt>سند الشركة</dt>
           <dd>
             <app-voucher-number [value]="s.companyReceiptVoucherNumber" />
           </dd>
@@ -31,6 +31,12 @@
         <dt>إجمالي الموزّع</dt>
         <dd class="psd-amount">{{ s.totalAmount | currencyAr: true }}</dd>
       </div>
+      @if (s.companyOwnProfit) {
+        <div class="psd-head-item">
+          <dt>نصيب الشركة من رصيدها</dt>
+          <dd class="psd-amount">{{ s.companyOwnProfit | currencyAr: true }}</dd>
+        </div>
+      }
       @if (s.notes) {
         <div class="psd-head-item psd-head-item--full">
           <dt>ملاحظات</dt>

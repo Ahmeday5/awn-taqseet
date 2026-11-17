@@ -120,11 +120,16 @@ export interface CapitalizeAllProfitsPayload {
 
 /**
  * Response of the capitalise endpoints. `companyReceiptVoucherNumber` is the
- * single receipt voucher booking the company's share; `paymentVoucherNumber`
- * on lines is always empty now.
+ * single company voucher posting `totalCompanyShare + companyOwnProfit` to
+ * its balance (a payment voucher when that total is a loss);
+ * `paymentVoucherNumber` on lines is always empty now.
  */
 export interface CapitalizeProfitsResult {
   companyReceiptVoucherNumber?: string | null;
+  /** Company share of the shareholders' profits (capitalize-all only). */
+  totalCompanyShare?: number;
+  /** The company's own pending profit posted with it (capitalize-all only). */
+  companyOwnProfit?: number;
   [key: string]: unknown;
 }
 

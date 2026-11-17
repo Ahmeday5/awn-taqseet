@@ -19,7 +19,6 @@ import {
   SearchableSelectComponent,
   SearchableSelectOption,
 } from '../../../../shared/components/searchable-select/searchable-select.component';
-import { shortenVoucherNumber } from '../../../../shared/components/voucher-number/voucher-number.component';
 import { CurrencyArPipe } from '../../../../shared/pipes/currency-ar.pipe';
 import { todayIsoDate } from '../../../../shared/utils/date-iso.util';
 import { ApiError } from '../../../../core/models/api-response.model';
@@ -31,13 +30,28 @@ import {
   CompanyBalanceTransaction,
   CompanyBalanceTransactionPayload,
   CompanyBalanceTxEditTarget,
+  CompanyBalanceTxKind,
   CompanyBalanceTxType,
 } from '../../models/shareholder.model';
 
-const TYPE_OPTIONS: ReadonlyArray<{ value: CompanyBalanceTxType; label: string }> = [
+type TypeOption = { value: CompanyBalanceTxType; label: string };
+
+const TYPE_OPTIONS: ReadonlyArray<TypeOption> = [
   { value: CompanyBalanceTxType.Deposit, label: 'إيداع' },
   { value: CompanyBalanceTxType.Withdrawal, label: 'سحب' },
 ];
+
+/** A transfer's direction relative to the company balance. */
+const TRANSFER_TYPE_OPTIONS: ReadonlyArray<TypeOption> = [
+  { value: CompanyBalanceTxType.Deposit, label: 'وارد لرصيد الشركة' },
+  { value: CompanyBalanceTxType.Withdrawal, label: 'صادر من رصيد الشركة' },
+];
+
+const EDIT_TITLES: Readonly<Record<CompanyBalanceTxKind, string>> = {
+  adjustment: 'تعديل عملية رصيد الشركة',
+  transfer: 'تعديل تحويل رصيد الشركة',
+  payment: 'تعديل سند صرف',
+};
 
 /** Signed effect of a movement on the company balance. */
 function signedAmount(type: CompanyBalanceTxType, amount: number): number {
@@ -45,13 +59,15 @@ function signedAmount(type: CompanyBalanceTxType, amount: number): number {
 }
 
 /**
- * Deposit to / withdraw from the company's own balance, or edit an existing
- * manual movement.
+ * Deposit to / withdraw from the company's own balance, or edit an
+ * editable company-statement line.
  *
  *  - create: `POST shareholders/company-balance/transactions` — the type is
  *    fixed by the button that opened the modal.
- *  - edit (`transaction` set): `PUT …/transactions/{id}` — the type can be
- *    switched.
+ *  - edit (`transaction` set): `PUT …/transactions/{id}?source=…` — a manual
+ *    movement or a legacy transfer can switch direction and treasury (for a
+ *    transfer the treasury is the other side of it); any other payment
+ *    voucher keeps both, since the server ignores its treasury.
  *
  * Every movement moves real money through a treasury, so the treasury is
  * required — except when editing a legacy movement that never had one,
@@ -88,7 +104,6 @@ export class CompanyBalanceModalComponent {
   private readonly service = inject(ShareholdersService);
   private readonly toast = inject(ToastService);
 
-  protected readonly typeOptions = TYPE_OPTIONS;
   protected readonly CompanyBalanceTxType = CompanyBalanceTxType;
 
   protected readonly submitting = signal(false);
@@ -117,20 +132,28 @@ export class CompanyBalanceModalComponent {
 
   // ── derived ──
   protected readonly isEdit = computed(() => this.transaction() !== null);
+  protected readonly kind = computed<CompanyBalanceTxKind>(
+    () => this.transaction()?.kind ?? 'adjustment',
+  );
+  /** Payment vouchers that aren't deposits/withdrawals keep their treasury and direction. */
+  protected readonly isPaymentVoucher = computed(() => this.kind() === 'payment');
+  protected readonly typeOptions = computed(() =>
+    this.kind() === 'transfer' ? TRANSFER_TYPE_OPTIONS : TYPE_OPTIONS,
+  );
   protected readonly isDeposit = computed(
     () => this.formValue().type === CompanyBalanceTxType.Deposit,
   );
 
   /** A legacy movement recorded before treasuries were required. */
   protected readonly isLegacy = computed(
-    () => this.isEdit() && this.transaction()?.treasuryId == null,
+    () => this.isEdit() && !this.isPaymentVoucher() && this.transaction()?.treasuryId == null,
   );
 
   protected readonly title = computed(() => {
     const tx = this.transaction();
     if (tx) {
-      const voucher = shortenVoucherNumber(tx.voucherNumber);
-      return voucher ? `تعديل عملية رصيد الشركة — ${voucher}` : 'تعديل عملية رصيد الشركة';
+      const title = EDIT_TITLES[tx.kind];
+      return tx.voucherNumber ? `${title} — ${tx.voucherNumber}` : title;
     }
     return this.isDeposit() ? 'إيداع لرصيد الشركة' : 'سحب من رصيد الشركة';
   });
@@ -172,7 +195,7 @@ export class CompanyBalanceModalComponent {
     const payload = this.toPayload();
     const tx = this.transaction();
     const request$ = tx
-      ? this.service.updateCompanyBalanceTransaction(tx.id, payload)
+      ? this.service.updateCompanyBalanceTransaction(tx.id, tx.source, payload)
       : this.service.createCompanyBalanceTransaction(payload);
 
     this.serverError.set(null);
@@ -209,10 +232,12 @@ export class CompanyBalanceModalComponent {
     this.submitting.set(false);
     this.serverError.set(null);
 
-    // Required on create; on edit only when the movement already has a
-    // treasury (a legacy one may stay without — null keeps it unchanged).
+    // Required on create; on edit only when the treasury applies and the
+    // movement already has one (a legacy one may stay without — null keeps
+    // it unchanged). A payment voucher's treasury is ignored server-side.
     const treasury = this.form.controls.treasuryId;
-    treasury.setValidators(!tx || tx.treasuryId != null ? [Validators.required] : []);
+    const treasuryRequired = !tx || (tx.kind !== 'payment' && tx.treasuryId != null);
+    treasury.setValidators(treasuryRequired ? [Validators.required] : []);
 
     this.form.reset({
       type: tx?.type ?? type,
@@ -239,7 +264,7 @@ export class CompanyBalanceModalComponent {
   }
 
   private successMessage(res: CompanyBalanceTransaction): string {
-    const voucher = res?.voucherNumber ? ` — سند رقم ${shortenVoucherNumber(res.voucherNumber)}` : '';
+    const voucher = res?.voucherNumber ? ` — سند رقم ${res.voucherNumber}` : '';
     if (this.isEdit()) return `تم تعديل العملية بنجاح${voucher}`;
     return (
       (this.isDeposit() ? 'تم الإيداع لرصيد الشركة بنجاح' : 'تم السحب من رصيد الشركة بنجاح') +

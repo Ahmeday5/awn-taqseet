@@ -28,8 +28,8 @@ import { ProfitSettlement } from '../../models/profit-settlement.model';
  *     (closed)="closeDetails()" />
  *
  * Fetches the full record (header + per-shareholder lines with their issued
- * voucher numbers) whenever it opens with an id. Voucher numbers are 70+ chars,
- * so they're shown shortened and copyable on click (`app-voucher-number`).
+ * voucher numbers) whenever it opens with an id. Voucher numbers are shown
+ * verbatim and copyable on click (`app-voucher-number`).
  */
 @Component({
   selector: 'app-profit-settlement-details-modal',

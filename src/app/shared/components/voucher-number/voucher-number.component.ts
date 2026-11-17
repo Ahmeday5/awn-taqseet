@@ -1,33 +1,10 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
 
 import { ToastService } from '../../../core/services/toast.service';
 
-const DEFAULT_HEAD = 6;
-const DEFAULT_TAIL = 6;
-const ELLIPSIS = '…';
-
 /**
- * Shortens a long voucher number by eliding its middle, keeping both the
- * type prefix and the unique tail readable (`RCP-20…000123`). Values short
- * enough to fit are returned unchanged.
- */
-export function shortenVoucherNumber(
-  value: string | null | undefined,
-  head = DEFAULT_HEAD,
-  tail = DEFAULT_TAIL,
-): string {
-  if (!value) return '';
-  return value.length > head + tail + ELLIPSIS.length
-    ? `${value.slice(0, head)}${ELLIPSIS}${value.slice(-tail)}`
-    : value;
-}
-
-/**
- * Compact voucher-number chip for dense ledgers.
- *
- * Shows a shortened number; hovering reveals the full value and a click
- * copies it, so the long number never widens the table yet stays one click
- * away.
+ * Voucher-number chip for ledgers. Voucher numbers are short sequential
+ * strings (`"1543"`), shown verbatim; a click copies the value.
  *
  *   <app-voucher-number [value]="e.voucherNumber" />
  */
@@ -44,7 +21,7 @@ export function shortenVoucherNumber(
         [attr.aria-label]="'رقم السند ' + value() + '، اضغط للنسخ'"
         (click)="copy($event)"
       >
-        <span class="vn-text">{{ short() }}</span>
+        <span class="vn-text">{{ value() }}</span>
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor"
              stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <rect x="9" y="9" width="11" height="11" rx="2" />
@@ -85,8 +62,6 @@ export function shortenVoucherNumber(
       font-size: 10.5px;
       font-weight: 600;
       white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
     }
 
     .vn-empty { color: var(--txt3); }
@@ -94,16 +69,8 @@ export function shortenVoucherNumber(
 })
 export class VoucherNumberComponent {
   readonly value = input<string | null | undefined>(null);
-  /** Characters kept from the start of the number. */
-  readonly head = input(DEFAULT_HEAD);
-  /** Characters kept from the end of the number (the unique part). */
-  readonly tail = input(DEFAULT_TAIL);
 
   private readonly toast = inject(ToastService);
-
-  protected readonly short = computed(() =>
-    shortenVoucherNumber(this.value(), this.head(), this.tail()),
-  );
 
   protected copy(event: MouseEvent): void {
     // Rows are often clickable — copying must not trigger them.

@@ -26,6 +26,10 @@
         <span class="cap-all-value" style="color:var(--txt2)">{{ totalCompanyShare() | currencyAr: true }}</span>
       </div>
       <div class="cap-all-summary-item">
+        <span class="cap-all-label">نصيب الشركة من رصيدها</span>
+        <span class="cap-all-value" [style.color]="companyOwnProfit() < 0 ? 'var(--re)' : 'var(--txt2)'">{{ companyOwnProfit() | currencyAr: true }}</span>
+      </div>
+      <div class="cap-all-summary-item">
         <span class="cap-all-label">عدد المساهمين</span>
         <span class="cap-all-value">{{ lines().length }}</span>
       </div>
@@ -41,40 +45,46 @@
           </svg>
         </div>
         <div class="cap-all-empty-title">لا توجد أرباح مستحقة للرسملة حاليًا</div>
-        <div class="cap-all-empty-sub">لا يوجد مساهمون لديهم أرباح متراكمة غير مُسوَّاة.</div>
+        <div class="cap-all-empty-sub">لا يوجد مساهمون لديهم أرباح متراكمة غير مُسوَّاة، ولا أرباح معلّقة للشركة.</div>
       </div>
     } @else {
-      <!-- breakdown table -->
-      <div class="tw cap-all-table">
-        <table>
-          <thead>
-            <tr>
-              <th>المساهم</th>
-              <th class="text-end">الأرباح المستحقة</th>
-              <th class="text-end">نصيب المساهم</th>
-              <th class="text-end">نصيب الشركة</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (line of lines(); track line.shareholderId) {
+      @if (totalAmount() <= 0) {
+        <div class="cap-all-note" role="note">
+          لا توجد أرباح مستحقة للمساهمين — سيتم ترحيل أرباح الشركة المعلّقة إلى رصيدها فقط.
+        </div>
+      } @else {
+        <!-- breakdown table -->
+        <div class="tw cap-all-table">
+          <table>
+            <thead>
               <tr>
-                <td class="fw-600">{{ line.shareholderName }}</td>
-                <td class="text-end cap-all-amount">{{ line.amount | currencyAr: true }}</td>
-                <td class="text-end" style="color:var(--gr);font-weight:600">{{ line.shareholderShare | currencyAr: true }}</td>
-                <td class="text-end" style="color:var(--txt3)">{{ line.companyShare | currencyAr: true }}</td>
+                <th>المساهم</th>
+                <th class="text-end">الأرباح المستحقة</th>
+                <th class="text-end">نصيب المساهم</th>
+                <th class="text-end">نصيب الشركة</th>
               </tr>
-            }
-          </tbody>
-          <tfoot>
-            <tr class="cap-all-total-row">
-              <td class="fw-600">الإجمالي</td>
-              <td class="text-end cap-all-amount">{{ totalAmount() | currencyAr: true }}</td>
-              <td class="text-end" style="color:var(--gr);font-weight:600">{{ totalShareholdersShare() | currencyAr: true }}</td>
-              <td class="text-end" style="color:var(--txt3)">{{ totalCompanyShare() | currencyAr: true }}</td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              @for (line of lines(); track line.shareholderId) {
+                <tr>
+                  <td class="fw-600">{{ line.shareholderName }}</td>
+                  <td class="text-end cap-all-amount">{{ line.amount | currencyAr: true }}</td>
+                  <td class="text-end" style="color:var(--gr);font-weight:600">{{ line.shareholderShare | currencyAr: true }}</td>
+                  <td class="text-end" style="color:var(--txt3)">{{ line.companyShare | currencyAr: true }}</td>
+                </tr>
+              }
+            </tbody>
+            <tfoot>
+              <tr class="cap-all-total-row">
+                <td class="fw-600">الإجمالي</td>
+                <td class="text-end cap-all-amount">{{ totalAmount() | currencyAr: true }}</td>
+                <td class="text-end" style="color:var(--gr);font-weight:600">{{ totalShareholdersShare() | currencyAr: true }}</td>
+                <td class="text-end" style="color:var(--txt3)">{{ totalCompanyShare() | currencyAr: true }}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      }
 
       <!-- form -->
       <form [formGroup]="form" (ngSubmit)="onSubmit()" novalidate autocomplete="off" class="cap-all-form">
@@ -103,7 +113,7 @@
       </form>
 
       <div class="cap-all-note" role="note">
-        سيتم ترحيل الأرباح المتراكمة إلى رأس مال كل مساهم وتصفير رصيد أرباحه، مع إصدار سند قبض واحد لحصة الشركة. هذا الإجراء لا يمكن التراجع عنه.
+        سيتم ترحيل الأرباح المتراكمة إلى رأس مال كل مساهم وتصفير رصيد أرباحه، مع إصدار سند واحد للشركة يشمل حصتها من أرباح المساهمين ونصيبها من أرباح رصيدها. هذا الإجراء لا يمكن التراجع عنه.
       </div>
     }
 

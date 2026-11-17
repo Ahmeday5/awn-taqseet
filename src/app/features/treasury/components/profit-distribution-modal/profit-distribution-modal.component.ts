@@ -23,6 +23,7 @@ import {
   ProfitSettlementPreview,
 } from '../../models/profit-settlement.model';
 import { FETCH_ALL_PAGE_SIZE } from '../../../../core/utils/api-list.util';
+import { companyPostingSummary } from '../../constants/company-profit-labels';
 
 @Component({
   selector: 'app-profit-distribution-modal',
@@ -69,7 +70,14 @@ export class ProfitDistributionModalComponent {
   protected readonly totalCompanyShare = computed(
     () => this.preview()?.totalCompanyShare ?? 0,
   );
-  protected readonly canDistribute = computed(() => this.totalAmount() > 0);
+  /** The company's own pending profit, posted together with its share. */
+  protected readonly companyOwnProfit = computed(
+    () => this.preview()?.companyOwnProfit ?? 0,
+  );
+  /** Allowed with no shareholder profit as long as the company has pending profit. */
+  protected readonly canDistribute = computed(
+    () => this.totalAmount() > 0 || this.companyOwnProfit() !== 0,
+  );
 
   // ── form ──
   protected readonly form = this.fb.nonNullable.group({
@@ -114,12 +122,7 @@ export class ProfitDistributionModalComponent {
       .subscribe({
         next: (settlement) => {
           this.submitting.set(false);
-          const receipt = settlement?.companyReceiptVoucherNumber;
-          this.toast.success(
-            receipt
-              ? `تم توزيع الأرباح بنجاح — سند قبض حصة الشركة: ${receipt}`
-              : 'تم توزيع الأرباح بنجاح',
-          );
+          this.toast.success(`تم توزيع الأرباح بنجاح${companyPostingSummary(settlement)}`);
           this.settled.emit(settlement);
         },
         error: (err: ApiError) => {

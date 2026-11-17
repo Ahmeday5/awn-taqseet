@@ -50,6 +50,23 @@ export enum CompanyBalanceTxType {
 export type CompanyBalanceTxDirection = 'Deposit' | 'Withdrawal';
 
 /**
+ * Which ledger an editable company-statement line lives in — sent as the
+ * `?source=` query param of the PUT/DELETE (`Voucher` is the server default,
+ * `Transfer` is mandatory for legacy treasury transfers).
+ */
+export type CompanyBalanceTxSource = 'Voucher' | 'Transfer';
+
+/**
+ * What an editable company-statement line is, which decides how its form
+ * behaves:
+ * - `adjustment` a manual deposit/withdrawal — treasury + direction editable.
+ * - `transfer`   a legacy transfer out of the company balance — `treasuryId`
+ *                is the other treasury, `type` the direction.
+ * - `payment`    any other payment voucher — the server ignores the treasury.
+ */
+export type CompanyBalanceTxKind = 'adjustment' | 'transfer' | 'payment';
+
+/**
  * POST/PUT `shareholders/company-balance/transactions[/{id}]` body.
  *
  * PUT semantics: `treasuryId: null` keeps the current treasury, while
@@ -76,7 +93,7 @@ export interface CompanyBalanceTransaction {
   direction: CompanyBalanceTxDirection;
   amount: number;
   /** Company balance right after this movement. May be negative. */
-  balanceAfter: number;
+  companyBalanceAfter: number;
   date: string;
   /** Null for legacy movements recorded before treasuries were required. */
   treasuryId: number | null;
@@ -93,6 +110,8 @@ export interface CompanyBalanceTransaction {
  */
 export interface CompanyBalanceTxEditTarget {
   id: number;
+  source: CompanyBalanceTxSource;
+  kind: CompanyBalanceTxKind;
   voucherNumber: string | null;
   type: CompanyBalanceTxType;
   amount: number;
@@ -113,6 +132,14 @@ export interface ReconcileHistoricalResult {
     treasuryName: string;
     amountRestored: number;
   }>;
+}
+
+/** `POST shareholders/company-balance/consolidate-historical` (Admin, idempotent). */
+export interface ConsolidateHistoricalResult {
+  mergedRuns: number;
+  vouchersRemoved: number;
+  profitShareRowsConsolidated: number;
+  vouchersCreated: number;
 }
 
 export interface CreateShareholderPayload {

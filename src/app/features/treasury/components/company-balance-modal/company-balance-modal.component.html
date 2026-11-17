@@ -8,22 +8,37 @@
 >
   <form [formGroup]="form" (ngSubmit)="submit()" novalidate autocomplete="off">
     <!-- What this movement actually does to the money. -->
-    <div class="alert mb-3 py-2" role="note" style="font-size:12px"
-      [class.alert-success]="isDeposit()" [class.alert-warning]="!isDeposit()">
-      @if (isDeposit()) {
-        الإيداع يُدخل المبلغ فعليًا في <strong>الخزينة المختارة</strong> ويزيد رصيد الشركة بنفس القيمة.
-      } @else {
-        السحب يُخرج المبلغ فعليًا من <strong>الخزينة المختارة</strong> ويقلل رصيد الشركة بنفس القيمة
-        (قد يصبح رصيد الشركة بالسالب).
+    @switch (kind()) {
+      @case ('payment') {
+        <div class="alert alert-warning mb-3 py-2" role="note" style="font-size:12px">
+          سند صرف من رصيد الشركة — يمكن تعديل المبلغ والتاريخ والتصنيف والملاحظات، وتبقى خزينة السند كما هي.
+        </div>
       }
-    </div>
+      @case ('transfer') {
+        <div class="alert alert-info mb-3 py-2" role="note" style="font-size:12px">
+          تحويل قديم بين رصيد الشركة و<strong>الخزينة المختارة</strong> — الخزينة هي الطرف الآخر في التحويل،
+          والاتجاه يحدد هل المبلغ وارد لرصيد الشركة أم صادر منه.
+        </div>
+      }
+      @default {
+        <div class="alert mb-3 py-2" role="note" style="font-size:12px"
+          [class.alert-success]="isDeposit()" [class.alert-warning]="!isDeposit()">
+          @if (isDeposit()) {
+            الإيداع يُدخل المبلغ فعليًا في <strong>الخزينة المختارة</strong> ويزيد رصيد الشركة بنفس القيمة.
+          } @else {
+            السحب يُخرج المبلغ فعليًا من <strong>الخزينة المختارة</strong> ويقلل رصيد الشركة بنفس القيمة
+            (قد يصبح رصيد الشركة بالسالب).
+          }
+        </div>
+      }
+    }
 
     <div class="row g-3">
-      @if (isEdit()) {
+      @if (isEdit() && !isPaymentVoucher()) {
         <div class="col-12">
           <label class="form-label">نوع العملية <span class="text-danger">*</span></label>
           <div class="btn-group w-100" role="radiogroup" aria-label="نوع العملية">
-            @for (opt of typeOptions; track opt.value) {
+            @for (opt of typeOptions(); track opt.value) {
               <input type="radio" class="btn-check" formControlName="type"
                 [id]="'cb-type-' + opt.value" [value]="opt.value" />
               <label class="btn btn-sm" [for]="'cb-type-' + opt.value"
@@ -57,26 +72,28 @@
         <app-form-error [control]="form.controls.date" label="التاريخ" />
       </div>
 
-      <div class="col-12 col-md-6">
-        <label class="form-label">
-          الخزينة
-          @if (!isLegacy()) {
-            <span class="text-danger">*</span>
+      @if (!isPaymentVoucher()) {
+        <div class="col-12 col-md-6">
+          <label class="form-label">
+            الخزينة
+            @if (!isLegacy()) {
+              <span class="text-danger">*</span>
+            }
+          </label>
+          <app-searchable-select
+            formControlName="treasuryId"
+            [placeholder]="lookupsLoading() ? 'جاري التحميل…' : (isLegacy() ? 'بدون خزينة (عملية قديمة)' : 'اختر الخزينة')"
+            searchPlaceholder="ابحث باسم الخزينة…"
+            [options]="treasuryOptions()"
+          />
+          <app-form-error [control]="form.controls.treasuryId" label="الخزينة" />
+          @if (isLegacy()) {
+            <div class="form-text" style="font-size:11px">
+              عملية قديمة مسجلة بدون خزينة — اتركها فارغة للإبقاء عليها كما هي.
+            </div>
           }
-        </label>
-        <app-searchable-select
-          formControlName="treasuryId"
-          [placeholder]="lookupsLoading() ? 'جاري التحميل…' : (isLegacy() ? 'بدون خزينة (عملية قديمة)' : 'اختر الخزينة')"
-          searchPlaceholder="ابحث باسم الخزينة…"
-          [options]="treasuryOptions()"
-        />
-        <app-form-error [control]="form.controls.treasuryId" label="الخزينة" />
-        @if (isLegacy()) {
-          <div class="form-text" style="font-size:11px">
-            عملية قديمة مسجلة بدون خزينة — اتركها فارغة للإبقاء عليها كما هي.
-          </div>
-        }
-      </div>
+        </div>
+      }
 
       <div class="col-12 col-md-6">
         <label class="form-label">التصنيف</label>

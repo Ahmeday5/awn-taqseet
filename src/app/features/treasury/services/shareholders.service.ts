@@ -20,6 +20,8 @@ import {
 import {
   CompanyBalanceTransaction,
   CompanyBalanceTransactionPayload,
+  CompanyBalanceTxSource,
+  ConsolidateHistoricalResult,
   CreateShareholderPayload,
   ReconcileHistoricalResult,
   Shareholder,
@@ -553,18 +555,21 @@ export class ShareholdersService {
   }
 
   /**
-   * Edits a manual deposit/withdrawal (`isEditable` statement lines only).
-   * `treasuryId: null` keeps the current treasury; `capitalClassificationId:
-   * null` clears the classification — callers resend the current one to keep it.
+   * Edits an `isEditable` company-statement line; `source` is the line's own
+   * (mandatory for transfers). `treasuryId: null` keeps the current treasury;
+   * `capitalClassificationId: null` clears the classification — callers
+   * resend the current one to keep it.
    */
   updateCompanyBalanceTransaction(
     id: number,
+    source: CompanyBalanceTxSource,
     payload: CompanyBalanceTransactionPayload,
   ): Observable<CompanyBalanceTransaction> {
     return this.api.put<CompanyBalanceTransaction>(
       API_ENDPOINTS.shareholders.companyBalanceTransactionById(id),
       payload,
       {
+        params: { source },
         context: withInlineHandling(
           withCacheInvalidate(MONEY_WRITE_SCOPES),
         ),
@@ -572,11 +577,15 @@ export class ShareholdersService {
     );
   }
 
-  /** Deletes a manual deposit/withdrawal, reversing its effect on the company balance and its treasury. */
-  deleteCompanyBalanceTransaction(id: number): Observable<unknown> {
+  /** Deletes an `isEditable` company-statement line, reversing its effect on the company balance and its treasury. */
+  deleteCompanyBalanceTransaction(
+    id: number,
+    source: CompanyBalanceTxSource,
+  ): Observable<unknown> {
     return this.api.delete<unknown>(
       API_ENDPOINTS.shareholders.companyBalanceTransactionById(id),
       {
+        params: { source },
         context: withInlineHandling(
           withCacheInvalidate(MONEY_WRITE_SCOPES),
         ),
@@ -588,6 +597,19 @@ export class ShareholdersService {
   reconcileHistoricalCompanyBalance(): Observable<ReconcileHistoricalResult> {
     return this.api.post<ReconcileHistoricalResult>(
       API_ENDPOINTS.shareholders.reconcileHistoricalCompanyBalance,
+      {},
+      {
+        context: withInlineHandling(
+          withCacheInvalidate(MONEY_WRITE_SCOPES),
+        ),
+      },
+    );
+  }
+
+  /** Admin one-off (idempotent): merges legacy per-profit company-share rows into consolidated vouchers. */
+  consolidateHistoricalCompanyBalance(): Observable<ConsolidateHistoricalResult> {
+    return this.api.post<ConsolidateHistoricalResult>(
+      API_ENDPOINTS.shareholders.consolidateHistoricalCompanyBalance,
       {},
       {
         context: withInlineHandling(

@@ -18,6 +18,7 @@ import { ToastService } from '../../../../core/services/toast.service';
 
 import { ShareholdersService } from '../../services/shareholders.service';
 import { ProfitSettlementPreview } from '../../models/profit-settlement.model';
+import { companyPostingSummary } from '../../constants/company-profit-labels';
 import { FETCH_ALL_PAGE_SIZE } from '../../../../core/utils/api-list.util';
 
 @Component({
@@ -61,7 +62,14 @@ export class CapitalizeAllProfitsModalComponent {
   protected readonly totalCompanyShare = computed(
     () => this.preview()?.totalCompanyShare ?? 0,
   );
-  protected readonly canCapitalize = computed(() => this.totalAmount() > 0);
+  /** The company's own pending profit, posted together with its share. */
+  protected readonly companyOwnProfit = computed(
+    () => this.preview()?.companyOwnProfit ?? 0,
+  );
+  /** Allowed with no shareholder profit as long as the company has pending profit. */
+  protected readonly canCapitalize = computed(
+    () => this.totalAmount() > 0 || this.companyOwnProfit() !== 0,
+  );
 
   protected readonly form = this.fb.nonNullable.group({
     date: [this.todayISO(), [Validators.required]],
@@ -100,11 +108,8 @@ export class CapitalizeAllProfitsModalComponent {
       .subscribe({
         next: (res) => {
           this.submitting.set(false);
-          const receipt = res?.companyReceiptVoucherNumber;
           this.toast.success(
-            receipt
-              ? `تم ترحيل أرباح جميع المساهمين إلى رأس المال بنجاح — سند قبض حصة الشركة: ${receipt}`
-              : 'تم ترحيل أرباح جميع المساهمين إلى رأس المال بنجاح',
+            `تم ترحيل الأرباح إلى رأس المال بنجاح${companyPostingSummary(res)}`,
           );
           this.capitalized.emit();
         },

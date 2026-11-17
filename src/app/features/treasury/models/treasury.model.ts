@@ -216,7 +216,13 @@ export interface ProfitExplanation {
 export interface ProfitTreasuries {
   /** Unsettled profits = companyPendingShare + shareholdersPendingShare. */
   profitsTreasury: number;
+  /** Includes `companyOwnPendingProfit`. */
   companyPendingShare: number;
+  /**
+   * The company's own share of the profits earned on its balance — held
+   * pending until the next capitalisation/distribution posts it.
+   */
+  companyOwnPendingProfit?: number;
   shareholdersPendingShare: number;
   /** What has actually been settled into the company's treasury. */
   companyProfitsTreasury: number;

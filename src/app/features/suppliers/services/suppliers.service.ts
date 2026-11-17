@@ -26,6 +26,8 @@ import {
 const SUPPLIERS_CACHE_KEY = 'suppliers';
 const SUPPLIERS_TTL_MS = 5 * 60 * 1000; // 5 min — list churns whenever a supplier is added/edited
 const STATEMENT_TTL_MS = 60 * 1000; // 1 min — figures move with every payment/draft
+/** A payment write moves the supplier figures, a treasury and the financial-separation view. */
+const PAYMENT_WRITE_SCOPES = [SUPPLIERS_CACHE_KEY, 'treasur', 'financial-separation'] as const;
 
 @Injectable({ providedIn: 'root' })
 export class SuppliersService {
@@ -57,10 +59,9 @@ export class SuppliersService {
   }
 
   /**
-   * Lightweight `{id,name}` list for the supplier picker. Preferred over
-   * {@link listAll} for ID pickers: it's a single role-scoped call (a
-   * Representative gets only the suppliers the backend allows) instead of
-   * draining the paged `Suppliers.View`-gated list endpoint.
+   * Lightweight `{id,name}` list for the supplier picker (every supplier,
+   * for every role). Preferred over {@link listAll} for ID pickers: a single
+   * call instead of draining the paged `Suppliers.View`-gated list endpoint.
    */
   lookup(): Observable<LookupItem[]> {
     return this.api
@@ -112,6 +113,8 @@ export class SuppliersService {
       from: query.from || undefined,
       to: query.to || undefined,
       includeDrafts: query.includeDrafts ?? false,
+      // `0` is meaningful (the admin's own movements) — only null/undefined are dropped.
+      representativeId: query.representativeId ?? undefined,
     };
   }
 
@@ -128,11 +131,28 @@ export class SuppliersService {
     return this.api.post<SupplierPaymentResponse>(
       API_ENDPOINTS.suppliers.payments(supplierId),
       payload,
-      {
-        context: withInlineHandling(
-          withCacheInvalidate([SUPPLIERS_CACHE_KEY, 'treasur', 'financial-separation']),
-        ),
-      },
+      { context: withInlineHandling(withCacheInvalidate(PAYMENT_WRITE_SCOPES)) },
+    );
+  }
+
+  /** PUT /dashboard/suppliers/{id}/payments/{paymentId} — same body/response as {@link pay}. */
+  updatePayment(
+    supplierId: number,
+    paymentId: number,
+    payload: SupplierPaymentPayload,
+  ): Observable<SupplierPaymentResponse> {
+    return this.api.put<SupplierPaymentResponse>(
+      API_ENDPOINTS.suppliers.paymentById(supplierId, paymentId),
+      payload,
+      { context: withInlineHandling(withCacheInvalidate(PAYMENT_WRITE_SCOPES)) },
+    );
+  }
+
+  /** DELETE /dashboard/suppliers/{id}/payments/{paymentId} — re-opens the invoices it settled. */
+  deletePayment(supplierId: number, paymentId: number): Observable<unknown> {
+    return this.api.delete<unknown>(
+      API_ENDPOINTS.suppliers.paymentById(supplierId, paymentId),
+      { context: withInlineHandling(withCacheInvalidate(PAYMENT_WRITE_SCOPES)) },
     );
   }
 

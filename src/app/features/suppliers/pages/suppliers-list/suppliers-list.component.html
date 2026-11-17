@@ -44,18 +44,27 @@
   <div class="sc">
     <div class="sc-l">إجمالي المشتريات</div>
     <div class="sc-v">{{ summary()?.totalPurchases ?? 0 | currencyAr: true }}</div>
+    @if (isRepresentative()) {
+      <div class="sc-s">حسب فواتيرك فقط</div>
+    }
   </div>
   <div class="sc">
     <div class="sc-l">المدفوع للموردين</div>
     <div class="sc-v sup-stat-pos">
       {{ summary()?.totalPaid ?? 0 | currencyAr: true }}
     </div>
+    @if (isRepresentative()) {
+      <div class="sc-s">حسب دفعاتك فقط</div>
+    }
   </div>
   <div class="sc">
     <div class="sc-l">الباقي للموردين</div>
     <div class="sc-v sup-stat-neg">
       {{ summary()?.totalRemaining ?? 0 | currencyAr: true }}
     </div>
+    @if (isRepresentative()) {
+      <div class="sc-s">حسب فواتيرك فقط</div>
+    }
   </div>
 </div>
 

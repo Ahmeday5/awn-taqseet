@@ -5,6 +5,9 @@ import { PagedResponse } from '../../../core/models/api-response.model';
  * the full shape (with purchasing aggregates); the create/update/getById
  * endpoints return only the contact essentials. Aggregate fields are
  * therefore optional so a single interface covers both shapes.
+ *
+ * Every role sees every supplier, but for a Representative the aggregates
+ * (and the list summary) cover only their own invoices and payments.
  */
 export interface Supplier {
   id: number;
@@ -81,6 +84,18 @@ export interface SupplierStatementQuery {
   to?: string;
   /** Include `Draft` invoices in the response. Defaults to `false` server-side. */
   includeDrafts?: boolean;
+  /**
+   * Non-Representative users only: omit for every movement, a representative
+   * id for that representative's account, `0` for the admin's own movements.
+   * Ignored for a Representative (always scoped to themselves).
+   */
+  representativeId?: number | null;
+}
+
+/** `null` representative on a movement means it was made by the admin (الإدارة). */
+export interface SupplierStatementRepresentative {
+  id: number;
+  name: string;
 }
 
 /** Trimmed supplier projection embedded in the statement payload. */
@@ -132,6 +147,9 @@ export interface SupplierStatementInvoice {
   totalAmount: number;
   paidAmount: number;
   remainingAmount: number;
+  /** `null` = the admin (الإدارة). */
+  representativeId: number | null;
+  representativeName: string | null;
   items: SupplierStatementItem[];
 }
 
@@ -141,9 +159,18 @@ export interface SupplierStatementPayment {
   date: string;
   amount: number;
   notes: string | null;
+  /** `null` = the admin (الإدارة). */
+  representativeId: number | null;
+  representativeName: string | null;
+  treasuryId: number | null;
+  treasuryName: string | null;
+  canEdit: boolean;
+  canDelete: boolean;
 }
 
 export interface SupplierStatement {
+  /** The representative the statement is scoped to; `null` when it covers everyone. */
+  representative: SupplierStatementRepresentative | null;
   supplier: SupplierStatementParty;
   period: SupplierStatementPeriod;
   summary: SupplierStatementSummary;
@@ -153,7 +180,9 @@ export interface SupplierStatement {
 
 // ─────────────────────────────────────────────────────────────────
 //  POST /dashboard/suppliers/{id}/payments
-//  Direct supplier payment — not tied to a specific invoice.
+//  PUT  /dashboard/suppliers/{id}/payments/{paymentId}
+//  Direct supplier payment — not tied to a specific invoice. A
+//  Representative's payment settles only their own invoices.
 // ─────────────────────────────────────────────────────────────────
 
 export interface SupplierPaymentPayload {
@@ -164,6 +193,7 @@ export interface SupplierPaymentPayload {
   notes?: string;
 }
 
+/** POST and PUT share the same response. */
 export interface SupplierPaymentResponse {
   voucherId: number;
   voucherNumber: string;

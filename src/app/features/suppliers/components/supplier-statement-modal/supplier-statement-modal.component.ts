@@ -10,10 +10,20 @@ import {
 } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { DecimalPipe } from '@angular/common';
+import { catchError, of } from 'rxjs';
 import { ModalComponent } from '../../../../shared/components/modal/modal.component';
 import { CurrencyArPipe } from '../../../../shared/pipes/currency-ar.pipe';
 import { BadgeComponent, BadgeType } from '../../../../shared/components/badge/badge.component';
+import {
+  SearchableSelectComponent,
+  SearchableSelectOption,
+} from '../../../../shared/components/searchable-select/searchable-select.component';
 import { ApiError } from '../../../../core/models/api-response.model';
+import { AuthService } from '../../../../core/services/auth.service';
+import { DialogService } from '../../../../core/services/dialog.service';
+import { ToastService } from '../../../../core/services/toast.service';
+import { apiErrorToMessage } from '../../../../core/utils/api-error.util';
+import { RepsService } from '../../../reps/services/reps.service';
 import { SuppliersService } from '../../services/suppliers.service';
 import {
   Supplier,
@@ -23,6 +33,7 @@ import {
   SupplierStatementPayment,
   SupplierStatementQuery,
 } from '../../models/supplier.model';
+import { SupplierPaymentModalComponent } from '../supplier-payment-modal/supplier-payment-modal.component';
 import { PrintConfig, PrintService } from '../../../../core/services/print.service';
 import { WhatsappSendButtonComponent } from '../../../../shared/components/whatsapp-send-button/whatsapp-send-button.component';
 import { formatMoneyAr } from '../../../../shared/utils/number-format.util';
@@ -48,6 +59,12 @@ const STATUS_LABEL: Record<SupplierStatementInvoiceStatus, string> = {
   Cancelled: 'ملغاة',
 };
 
+/** A movement with no representative was made by the admin. */
+const ADMIN_LABEL = 'الإدارة';
+
+/** `representativeId=0` scopes the statement to the admin's own movements. */
+const ADMIN_REPRESENTATIVE_ID = 0;
+
 @Component({
   selector: 'app-supplier-statement-modal',
   standalone: true,
@@ -57,7 +74,9 @@ const STATUS_LABEL: Record<SupplierStatementInvoiceStatus, string> = {
     ModalComponent,
     CurrencyArPipe,
     BadgeComponent,
+    SearchableSelectComponent,
     WhatsappSendButtonComponent,
+    SupplierPaymentModalComponent,
   ],
   templateUrl: './supplier-statement-modal.component.html',
   styleUrl: './supplier-statement-modal.component.scss',
@@ -76,6 +95,21 @@ export class SupplierStatementModalComponent {
   private readonly service = inject(SuppliersService);
   private readonly printer = inject(PrintService);
   private readonly pdf = inject(PdfExportService);
+  private readonly auth = inject(AuthService);
+  private readonly reps = inject(RepsService);
+  private readonly dialog = inject(DialogService);
+  private readonly toast = inject(ToastService);
+
+  /** A Representative always sees only their own account — no filter. */
+  protected readonly canFilterByRepresentative = computed(
+    () => !this.auth.hasRole('Representative'),
+  );
+  protected readonly representativeOptions = signal<SearchableSelectOption[]>([]);
+  private representativesLoaded = false;
+
+  // ── payment edit / delete ──
+  protected readonly editPayment = signal<SupplierStatementPayment | null>(null);
+  protected readonly deletingPaymentId = signal<number | null>(null);
 
   // ── reactive state ──
   protected readonly statement = signal<SupplierStatement | null>(null);
@@ -90,6 +124,7 @@ export class SupplierStatementModalComponent {
     from: [''],
     to: [''],
     includeDrafts: [false],
+    representativeId: this.fb.control<number | null>(null),
   });
 
   // ── derived ──
@@ -109,11 +144,23 @@ export class SupplierStatementModalComponent {
     return Math.min(100, (s.totalPaid / s.totalPurchases) * 100);
   });
 
-  /** Resolved title for the modal — combines entity name when known. */
+  /** Resolved title for the modal — supplier name, plus the representative when scoped to one. */
   protected readonly title = computed(() => {
     const s = this.supplier();
-    return s ? `كشف حساب — ${s.fullName}` : 'كشف حساب المورد';
+    if (!s) return 'كشف حساب المورد';
+    const rep = this.statement()?.representative;
+    return rep ? `كشف حساب — ${s.fullName} — المندوب ${rep.name}` : `كشف حساب — ${s.fullName}`;
   });
+
+  /** Actions column only when at least one direct payment can be edited or deleted. */
+  protected readonly showPaymentActions = computed(() =>
+    (this.statement()?.payments ?? []).some((p) => p.canEdit || p.canDelete),
+  );
+
+  /** The statement must stay put while the edit modal is on top or a delete runs. */
+  protected readonly dismissible = computed(
+    () => !this.loading() && !this.editPayment() && this.deletingPaymentId() === null,
+  );
 
   // ── debounce ──
   private debounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -130,6 +177,7 @@ export class SupplierStatementModalComponent {
         // First-open reset so reopening for the same supplier doesn't
         // surface a stale draft toggle from the previous session.
         this.resetIfNewSupplier(supplier.id);
+        this.loadRepresentatives();
         this.fetch(supplier.id, this.currentQuery(), false);
       },
       { allowSignalWrites: true },
@@ -149,6 +197,7 @@ export class SupplierStatementModalComponent {
   // ─────────── template handlers ───────────
 
   protected close(): void {
+    if (!this.dismissible()) return;
     this.closed.emit();
   }
 
@@ -159,7 +208,57 @@ export class SupplierStatementModalComponent {
   }
 
   protected resetFilters(): void {
-    this.form.reset({ from: '', to: '', includeDrafts: false });
+    this.form.reset({ from: '', to: '', includeDrafts: false, representativeId: null });
+  }
+
+  protected representativeLabel(name: string | null | undefined): string {
+    return name || ADMIN_LABEL;
+  }
+
+  // ─────────── direct payment edit / delete ───────────
+
+  protected openEditPayment(payment: SupplierStatementPayment): void {
+    if (!payment.canEdit) return;
+    this.editPayment.set(payment);
+  }
+
+  protected closeEditPayment(): void {
+    this.editPayment.set(null);
+  }
+
+  /** Invoice statuses and remaining amounts move with the payment — reload. */
+  protected onPaymentEdited(): void {
+    this.editPayment.set(null);
+    this.refresh();
+  }
+
+  protected async confirmDeletePayment(payment: SupplierStatementPayment): Promise<void> {
+    const supplier = this.supplier();
+    if (!supplier || !payment.canDelete || this.deletingPaymentId() !== null) return;
+
+    const ok = await this.dialog.confirm({
+      title: 'حذف دفعة المورد',
+      message:
+        `هل أنت متأكد من حذف الدفعة رقم ${payment.voucherNumber} بمبلغ ${formatMoneyAr(payment.amount)}؟ ` +
+        'سيعود المبلغ إلى الخزنة وتُعاد حالة الفواتير التي سددتها. هذا الإجراء لا يمكن التراجع عنه.',
+      confirmText: 'حذف',
+      cancelText: 'إلغاء',
+      type: 'danger',
+    });
+    if (!ok) return;
+
+    this.deletingPaymentId.set(payment.id);
+    this.service.deletePayment(supplier.id, payment.id).subscribe({
+      next: () => {
+        this.deletingPaymentId.set(null);
+        this.toast.success('تم حذف الدفعة بنجاح');
+        this.refresh();
+      },
+      error: (err: ApiError) => {
+        this.deletingPaymentId.set(null);
+        this.toast.error(apiErrorToMessage(err, 'تعذّر حذف الدفعة'));
+      },
+    });
   }
 
   protected toggleInvoice(id: number): void {
@@ -256,6 +355,7 @@ export class SupplierStatementModalComponent {
     const meta: Array<{ label: string; value: string }> = [
       { label: 'المورد', value: supplier.fullName },
     ];
+    if (s.representative) meta.push({ label: 'المندوب', value: s.representative.name });
     if (s.period.from) meta.push({ label: 'من تاريخ', value: this.formatDate(s.period.from) });
     if (s.period.to)   meta.push({ label: 'إلى تاريخ', value: this.formatDate(s.period.to) });
     meta.push({ label: 'عدد الفواتير', value: String(s.summary.invoicesCount) });
@@ -276,6 +376,12 @@ export class SupplierStatementModalComponent {
         { key: 'invoiceDate',    header: 'تاريخ الفاتورة', align: 'center', format: 'shortDate' },
         { key: 'dueDate',        header: 'الاستحقاق',     align: 'center', format: 'shortDate' },
         {
+          key: 'representativeName',
+          header: 'المندوب',
+          align: 'center',
+          format: (v) => this.representativeLabel(v as string | null),
+        },
+        {
           key: 'status',
           header: 'الحالة',
           align: 'center',
@@ -290,7 +396,7 @@ export class SupplierStatementModalComponent {
       ],
       totals: {
         label: 'الإجمالي',
-        labelColSpan: 7,
+        labelColSpan: 8,
         cells: [
           `${Math.round(s.summary.totalPurchases).toLocaleString('ar-EG')} ج.م`,
           `${Math.round(s.summary.totalPaid).toLocaleString('ar-EG')} ج.م`,
@@ -309,7 +415,23 @@ export class SupplierStatementModalComponent {
       from: raw.from?.trim() || undefined,
       to: raw.to?.trim() || undefined,
       includeDrafts: !!raw.includeDrafts,
+      representativeId: this.canFilterByRepresentative() ? raw.representativeId : null,
     };
+  }
+
+  /** Filter choices: "all" is the empty selection, then the admin, then each representative. */
+  private loadRepresentatives(): void {
+    if (!this.canFilterByRepresentative() || this.representativesLoaded) return;
+    this.representativesLoaded = true;
+    this.reps
+      .lookup()
+      .pipe(catchError(() => of([])))
+      .subscribe((list) =>
+        this.representativeOptions.set([
+          { value: ADMIN_REPRESENTATIVE_ID, label: ADMIN_LABEL },
+          ...list.map((r) => ({ value: r.id, label: r.name })),
+        ]),
+      );
   }
 
   /**
@@ -324,8 +446,9 @@ export class SupplierStatementModalComponent {
     this.statement.set(null);
     this.error.set(null);
     this.expanded.set(new Set<number>());
+    this.editPayment.set(null);
     this.form.reset(
-      { from: '', to: '', includeDrafts: false },
+      { from: '', to: '', includeDrafts: false, representativeId: null },
       { emitEvent: false },
     );
   }

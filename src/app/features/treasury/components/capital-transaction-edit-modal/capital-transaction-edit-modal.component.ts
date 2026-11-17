@@ -15,7 +15,6 @@ import {
   SearchableSelectComponent,
   SearchableSelectOption,
 } from '../../../../shared/components/searchable-select/searchable-select.component';
-import { shortenVoucherNumber } from '../../../../shared/components/voucher-number/voucher-number.component';
 import { ToastService } from '../../../../core/services/toast.service';
 import { ApiError } from '../../../../core/models/api-response.model';
 import { apiErrorToMessage } from '../../../../core/utils/api-error.util';
@@ -61,7 +60,7 @@ export class CapitalTransactionEditModalComponent {
   protected readonly typeOptions = CAPITAL_TX_TYPE_OPTIONS;
 
   protected readonly title = computed(() => {
-    const voucher = shortenVoucherNumber(this.transaction()?.voucherNumber);
+    const voucher = this.transaction()?.voucherNumber;
     return voucher ? `تعديل عملية رأس مال — ${voucher}` : 'تعديل عملية رأس مال';
   });
 

@@ -9,14 +9,18 @@ import {
   untracked,
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { map } from 'rxjs';
 
 import { ShareholdersService } from '../../services/shareholders.service';
-import { CapitalClassificationStatement } from '../../models/capital-classification.model';
+import {
+  CapitalClassificationStatement,
+  CapitalClassificationStatementEntry,
+} from '../../models/capital-classification.model';
+import { buildClassificationWhatsappMessage } from '../../constants/classification-whatsapp.util';
 
 import { PaginationComponent } from '../../../../shared/components/pagination/pagination.component';
 import { CurrencyArPipe } from '../../../../shared/pipes/currency-ar.pipe';
 import { DateArPipe } from '../../../../shared/pipes/date-ar.pipe';
-import { VoucherNumberComponent } from '../../../../shared/components/voucher-number/voucher-number.component';
 import {
   DateRange,
   EMPTY_DATE_RANGE,
@@ -24,33 +28,13 @@ import {
   periodLabel,
   withPeriod,
 } from '../../../../shared/utils/period-label.util';
-import { formatMoneyAr } from '../../../../shared/utils/number-format.util';
-import { openWhatsappShare } from '../../../../shared/utils/whatsapp-share.util';
+import { reserveWhatsappShare } from '../../../../shared/utils/whatsapp-share.util';
 import { ToastService } from '../../../../core/services/toast.service';
 import { ApiError } from '../../../../core/models/api-response.model';
 import { apiErrorToMessage } from '../../../../core/utils/api-error.util';
+import { fetchAllPages } from '../../../../core/utils/api-list.util';
 
 const DEFAULT_PAGE_SIZE = 10;
-
-/**
- * WhatsApp summary of a classification statement. A classification has no
- * owner or phone, so it is shared as text and the user picks the recipient.
- */
-export function buildClassificationWhatsappMessage(
-  st: CapitalClassificationStatement,
-  range: DateRange,
-): string {
-  const period = periodLabel(range);
-  return [
-    `*كشف حساب تصنيف — ${st.classification?.name ?? ''}*`,
-    `الفترة: ${period || 'كل الحركات'}`,
-    '',
-    `إجمالي الإيداعات: ${formatMoneyAr(st.totalDeposits)}`,
-    `إجمالي السحوبات: ${formatMoneyAr(st.totalWithdrawals)}`,
-    `${withPeriod('صافي الرصيد', range)}: ${formatMoneyAr(st.netBalance)}`,
-    `عدد الحركات: ${(st.entries?.count ?? 0).toLocaleString('ar-EG')}`,
-  ].join('\n');
-}
 
 /**
  * كشف حساب التصنيف — every capital movement tagged with one classification,
@@ -60,7 +44,7 @@ export function buildClassificationWhatsappMessage(
   selector: 'app-capital-classification-statement',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, PaginationComponent, VoucherNumberComponent, CurrencyArPipe, DateArPipe],
+  imports: [RouterLink, PaginationComponent, CurrencyArPipe, DateArPipe],
   templateUrl: './capital-classification-statement.component.html',
   styleUrl: './capital-classification-statement.component.scss',
 })
@@ -81,12 +65,24 @@ export class CapitalClassificationStatementComponent {
   private readonly appliedRange = signal<DateRange>(EMPTY_DATE_RANGE);
   protected readonly pageIndex = signal(1);
   protected readonly pageSize = signal(DEFAULT_PAGE_SIZE);
+  /** Fetching every page for the WhatsApp message. */
+  protected readonly sharing = signal(false);
 
   protected readonly classificationId = computed(() => Number(this.id()) || 0);
   protected readonly entries = computed(() => this.statement()?.entries.data ?? []);
   protected readonly count = computed(() => this.statement()?.entries.count ?? 0);
   protected readonly totalPages = computed(() => this.statement()?.entries.totalPages ?? 0);
   protected readonly hasFilters = computed(() => !!this.fromDate() || !!this.toDate());
+
+  /**
+   * Serial of the first row on the shown page — rows are numbered 1, 2, 3…
+   * in statement order across pages (taken from the loaded page, so numbers
+   * stay right while the next page is still loading).
+   */
+  protected readonly rowOffset = computed(() => {
+    const page = this.statement()?.entries;
+    return Math.max(0, ((page?.pageIndex ?? 1) - 1) * (page?.pageSize ?? this.pageSize()));
+  });
   protected readonly isPeriodApplied = computed(() => hasDateRange(this.appliedRange()));
   protected readonly periodText = computed(() => periodLabel(this.appliedRange()));
   protected readonly netTitle = computed(() => withPeriod('صافي الرصيد', this.appliedRange()));
@@ -110,11 +106,45 @@ export class CapitalClassificationStatementComponent {
     });
   }
 
-  /** Summary of what is on screen — the applied period, not the draft inputs. */
+  /**
+   * Shares the full statement on WhatsApp — every movement of the applied
+   * period (all pages, not the draft inputs), numbered like the table, plus
+   * the totals.
+   */
   protected shareOnWhatsapp(): void {
     const st = this.statement();
-    if (!st) return;
-    openWhatsappShare(buildClassificationWhatsappMessage(st, this.appliedRange()));
+    const id = this.classificationId();
+    if (!st || !id || this.sharing()) return;
+
+    // Reserved inside the click so the popup isn't blocked after the fetch.
+    const share = reserveWhatsappShare();
+    const range = this.appliedRange();
+    this.sharing.set(true);
+
+    fetchAllPages<CapitalClassificationStatementEntry>((pageIndex, pageSize) =>
+      this.service
+        .getClassificationStatement(
+          id,
+          {
+            pageIndex,
+            pageSize,
+            fromDate: range.fromDate || undefined,
+            toDate: range.toDate || undefined,
+          },
+          true,
+        )
+        .pipe(map((res) => res.entries)),
+    ).subscribe({
+      next: (entries) => {
+        this.sharing.set(false);
+        share.send(buildClassificationWhatsappMessage(st, entries, range));
+      },
+      error: (err: ApiError) => {
+        this.sharing.set(false);
+        share.cancel();
+        this.toast.error(apiErrorToMessage(err, 'تعذّر تجهيز كشف الحساب للمشاركة'));
+      },
+    });
   }
 
   protected applyDates(): void {

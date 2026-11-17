@@ -385,7 +385,7 @@ export class ShareholderCapitalModalComponent {
           this.afterWrite(
             sh.id,
             receipt
-              ? `تم ترحيل الأرباح إلى رأس المال بنجاح — سند قبض حصة الشركة: ${receipt}`
+              ? `تم ترحيل الأرباح إلى رأس المال بنجاح — سند الشركة رقم ${receipt}`
               : 'تم ترحيل الأرباح إلى رأس المال بنجاح',
           );
           this.capForm.controls.amount.setValue(0);

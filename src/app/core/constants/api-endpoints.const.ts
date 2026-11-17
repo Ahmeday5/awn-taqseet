@@ -97,12 +97,18 @@ export const API_ENDPOINTS = {
     /** POST: deposit/withdraw directly against the company's own balance. */
     companyBalanceTransactions:
       'dashboard/shareholders/company-balance/transactions',
-    /** PUT edit / DELETE a manual deposit/withdrawal (the `id` of an `isEditable` company-statement line). */
+    /**
+     * PUT edit / DELETE an `isEditable` company-statement line (its `id`).
+     * Callers must pass the line's `source` as a query param.
+     */
     companyBalanceTransactionById: (id: number) =>
       `dashboard/shareholders/company-balance/transactions/${id}`,
     /** POST (Admin, one-off, idempotent): fold historical profit-treasury drift back into the company balance. */
     reconcileHistoricalCompanyBalance:
       'dashboard/shareholders/company-balance/reconcile-historical',
+    /** POST (Admin, idempotent): merge legacy per-profit company-share vouchers into consolidated ones. */
+    consolidateHistoricalCompanyBalance:
+      'dashboard/shareholders/company-balance/consolidate-historical',
   },
   warehouses: {
     base: 'dashboard/warehouses',
@@ -126,10 +132,13 @@ export const API_ENDPOINTS = {
     base: 'dashboard/suppliers',
     byId: (id: number) => `dashboard/suppliers/${id}`,
     statement: (id: number) => `dashboard/suppliers/${id}/statement`,
-    /** Lightweight `{id,name}` list for the supplier picker (role-scoped server-side). */
+    /** Lightweight `{id,name}` list for the supplier picker (every supplier, for every role). */
     lookup: 'dashboard/suppliers/lookup',
     /** POST: record a direct payment (not tied to an invoice) for a supplier. */
     payments: (id: number) => `dashboard/suppliers/${id}/payments`,
+    /** PUT edit / DELETE a direct payment (gated per row by `canEdit` / `canDelete`). */
+    paymentById: (supplierId: number, paymentId: number) =>
+      `dashboard/suppliers/${supplierId}/payments/${paymentId}`,
   },
   purchaseInvoices: {
     base: 'dashboard/supplier-purchase-invoices',

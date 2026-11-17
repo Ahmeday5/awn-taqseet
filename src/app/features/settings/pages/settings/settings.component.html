@@ -62,3 +62,42 @@
     }
   }
 </div>
+
+<div class="card mt-3" style="padding:16px">
+  <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+    <div>
+      <div style="font-size:14px;font-weight:700">تجميع سندات أرباح الشركة القديمة</div>
+      <div style="font-size:11px;color:var(--txt2);margin-top:4px;max-width:560px">
+        يدمج سطور «نصيب الشركة من الأرباح» القديمة في سندات مُجمّعة، ليظهر كشف حساب الشركة بالشكل الجديد.
+        تشغيلها مرة أخرى آمن ولا يغيّر شيئًا.
+      </div>
+    </div>
+    <button
+      type="button"
+      class="btn btn-sm btn-bl d-inline-flex align-items-center gap-2"
+      [disabled]="consolidating()"
+      (click)="runConsolidate()"
+    >
+      @if (consolidating()) {
+        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+      }
+      <span>{{ consolidating() ? 'جاري التنفيذ...' : 'تنفيذ التجميع' }}</span>
+    </button>
+  </div>
+
+  @if (consolidateError(); as msg) {
+    <div class="alert alert-danger mt-3 mb-0" role="alert" style="font-size:12px">{{ msg }}</div>
+  }
+
+  @if (consolidateResult(); as r) {
+    <div class="d-flex gap-3 flex-wrap mt-3" style="font-size:12px">
+      <div><span style="color:var(--txt3)">مجموعات مدموجة:</span> <strong>{{ r.mergedRuns | number }}</strong></div>
+      <div><span style="color:var(--txt3)">سندات محذوفة:</span> <strong>{{ r.vouchersRemoved | number }}</strong></div>
+      <div><span style="color:var(--txt3)">سطور أرباح مُجمّعة:</span> <strong>{{ r.profitShareRowsConsolidated | number }}</strong></div>
+      <div><span style="color:var(--txt3)">سندات جديدة:</span> <strong>{{ r.vouchersCreated | number }}</strong></div>
+    </div>
+    @if (!r.mergedRuns && !r.vouchersRemoved && !r.profitShareRowsConsolidated && !r.vouchersCreated) {
+      <div class="mt-2" style="font-size:11px;color:var(--txt3)">لا توجد تغييرات — التجميع منفّذ من قبل.</div>
+    }
+  }
+</div>

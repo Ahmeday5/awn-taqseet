@@ -19,6 +19,7 @@ import { SupplierPaymentModalComponent } from '../../components/supplier-payment
 import { PaginationComponent } from '../../../../shared/components/pagination/pagination.component';
 import { CurrencyArPipe } from '../../../../shared/pipes/currency-ar.pipe';
 import { FormMode } from '../../../../shared/models/form-mode.model';
+import { AuthService } from '../../../../core/services/auth.service';
 import { DialogService } from '../../../../core/services/dialog.service';
 import { ToastService } from '../../../../core/services/toast.service';
 import { HttpCacheService } from '../../../../core/services/http-cache.service';
@@ -40,6 +41,8 @@ const DEFAULT_PAGE_SIZE = 10;
  *   - CRUD: create / edit / view via the form modal, delete via dialog
  *   - mutations are optimistic where safe (delete) and refetch the
  *     active page on save so server-side ordering stays authoritative
+ *   - every role sees every supplier; a Representative's figures (rows
+ *     and summary) cover only their own invoices and payments
  */
 @Component({
   selector: 'app-suppliers-list',
@@ -62,6 +65,7 @@ export class SuppliersListComponent implements OnInit {
   private readonly toast   = inject(ToastService);
   private readonly cache   = inject(HttpCacheService);
   private readonly printer = inject(PrintService);
+  private readonly auth    = inject(AuthService);
 
   protected readonly isPrinting = signal(false);
 
@@ -99,6 +103,8 @@ export class SuppliersListComponent implements OnInit {
   protected readonly deletingId = signal<number | null>(null);
 
   // ── derived ──
+  /** A Representative's figures are scoped to their own account — say so on the cards. */
+  protected readonly isRepresentative = computed(() => this.auth.hasRole('Representative'));
   protected readonly hasSuppliers = computed(() => this.suppliers().length > 0);
   protected readonly hasFilters   = computed(() => this.searchTerm().length > 0);
 

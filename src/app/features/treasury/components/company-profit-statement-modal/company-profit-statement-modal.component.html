@@ -29,6 +29,12 @@
         <div class="cps-sc-val" [class.cps-neg]="st.currentBalance < 0">{{ st.currentBalance | currencyAr: true }}</div>
         <div class="cps-sc-sub">لا يتأثر بفلتر التاريخ</div>
       </div>
+      @let pending = st.pendingProfit ?? 0;
+      <div class="cps-sc cps-sc-pending">
+        <div class="cps-sc-label">أرباح معلّقة (تُرحّل مع الترحيل القادم)</div>
+        <div class="cps-sc-val" [class.cps-neg]="pending < 0">{{ pending | currencyAr: true }}</div>
+        <div class="cps-sc-sub">لم تدخل رصيد الشركة بعد</div>
+      </div>
     </div>
 
     @let diff = unexplainedDifference();

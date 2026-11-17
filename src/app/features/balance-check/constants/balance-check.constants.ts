@@ -62,8 +62,8 @@ export const OBLIGATION_SECTIONS: Readonly<
     tone: 'te',
   },
   profit: {
-    title: 'الأرباح',
-    description: 'صافي الأرباح غير الموزعة بعد المصروفات والعمولات',
+    title: 'الأرباح الحالية',
+    description: 'الأرباح غير الموزعة بعد المصروفات والعمولات',
     icon: 'chart',
     tone: 'gr',
   },
@@ -90,7 +90,7 @@ export interface ProfitLineMeta {
 export const PROFIT_LINES: ReadonlyArray<ProfitLineMeta> = [
   {
     key: 'grossContractsProfit',
-    label: 'ربح العقود',
+    label: 'أرباح العقود',
     hint: 'إجمالي هامش الربح على عقود التقسيط',
     sign: 1,
   },
@@ -108,14 +108,14 @@ export const PROFIT_LINES: ReadonlyArray<ProfitLineMeta> = [
   },
   {
     key: 'distributedProfit',
-    label: 'الأرباح الموزعة',
+    label: 'الموزع',
     hint: 'حصص المساهمين المصروفة عند التوزيع',
     sign: -1,
   },
   {
     key: 'representativeCommission',
-    label: 'عمولة المناديب',
-    hint: 'العمولات المستحقة للمناديب',
+    label: 'عمولات المناديب المدفوعة',
+    hint: 'العمولات المصروفة للمناديب',
     sign: -1,
   },
 ];

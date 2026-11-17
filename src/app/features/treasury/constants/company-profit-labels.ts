@@ -1,4 +1,6 @@
 import { BadgeType } from '../../../shared/components/badge/badge.component';
+import { formatMoneyAr } from '../../../shared/utils/number-format.util';
+import { CompanyPosting } from '../models/profit-settlement.model';
 import {
   CompanyProfitEntry,
   CompanyProfitReferenceType,
@@ -6,6 +8,8 @@ import {
 } from '../models/company-profit-statement.model';
 import {
   CompanyBalanceTxEditTarget,
+  CompanyBalanceTxKind,
+  CompanyBalanceTxSource,
   CompanyBalanceTxType,
 } from '../models/shareholder.model';
 
@@ -31,12 +35,14 @@ const REFERENCE_TYPE_LABELS: Readonly<Record<string, string>> = {
   TransferIn: 'تحويل وارد',
   TransferOut: 'تحويل صادر',
   CompanyCapitalAdjustment: 'تعديل رصيد الشركة',
+  CompanyProfitShare: 'نصيب الشركة من الأرباح (مُجمّع)',
 };
 
 const REFERENCE_TYPE_BADGE: Readonly<Record<string, BadgeType>> = {
   ShareholderProfitCapitalization: 'purple',
   ProfitDistribution: 'teal',
   CompanyCapitalAdjustment: 'warn',
+  CompanyProfitShare: 'teal',
 };
 
 /** Manual deposit/withdrawal lines read better as إيداع / سحب than as a generic adjustment. */
@@ -46,8 +52,8 @@ const MANUAL_ADJUSTMENT_LABELS: Readonly<Record<CompanyProfitVoucherType, string
 };
 
 /**
- * The company's own cut of a booked profit. A `Payment` is the company's
- * share of an expense, or the reversal of an earlier profit.
+ * Legacy (pre-consolidation) per-profit company cut. A `Payment` is the
+ * company's share of an expense, or the reversal of an earlier profit.
  */
 const PROFIT_SHARE_LABELS: Readonly<Record<CompanyProfitVoucherType, string>> = {
   Receipt: 'نصيب الشركة من الأرباح',
@@ -118,10 +124,26 @@ export function toCompanyProfitEntryRow(entry: CompanyProfitEntry): CompanyProfi
   };
 }
 
-/** Maps an editable statement line onto the company-balance form. */
+/** The `?source=` an editable line's PUT/DELETE must echo back. */
+export function companyBalanceTxSource(entry: CompanyProfitEntry): CompanyBalanceTxSource {
+  return entry.source === 'Transfer' ? 'Transfer' : 'Voucher';
+}
+
+export function companyBalanceTxKind(entry: CompanyProfitEntry): CompanyBalanceTxKind {
+  if (entry.source === 'Transfer') return 'transfer';
+  return entry.referenceType === 'CompanyCapitalAdjustment' ? 'adjustment' : 'payment';
+}
+
+/**
+ * Maps an editable statement line onto the company-balance form. For a
+ * transfer, `counterpartyTreasuryId` is the other treasury of the transfer
+ * and the type is its direction (`Payment` = out of the company balance).
+ */
 export function toCompanyBalanceEditTarget(entry: CompanyProfitEntry): CompanyBalanceTxEditTarget {
   return {
     id: entry.id,
+    source: companyBalanceTxSource(entry),
+    kind: companyBalanceTxKind(entry),
     voucherNumber: entry.voucherNumber,
     type: isCompanyProfitInflow(entry.voucherType)
       ? CompanyBalanceTxType.Deposit
@@ -133,4 +155,18 @@ export function toCompanyBalanceEditTarget(entry: CompanyProfitEntry): CompanyBa
     capitalClassificationId: entry.capitalClassificationId,
     notes: entry.notes,
   };
+}
+
+/**
+ * Toast suffix summarising what a distribution/capitalisation posted to the
+ * company balance: its share of the shareholders' profits plus its own
+ * pending profit, in one voucher.
+ */
+export function companyPostingSummary(res: CompanyPosting | null | undefined): string {
+  const voucher = res?.companyReceiptVoucherNumber
+    ? ` — سند الشركة رقم ${res.companyReceiptVoucherNumber}`
+    : '';
+  if (res?.totalCompanyShare == null && res?.companyOwnProfit == null) return voucher;
+  const total = (res.totalCompanyShare ?? 0) + (res.companyOwnProfit ?? 0);
+  return ` — إجمالي ما دخل رصيد الشركة: ${formatMoneyAr(total)}${voucher}`;
 }

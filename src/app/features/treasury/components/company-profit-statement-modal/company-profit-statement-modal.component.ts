@@ -41,6 +41,8 @@ import { CompanyBalanceTxEditTarget } from '../../models/shareholder.model';
 import {
   CompanyProfitEntryRow,
   TRANSFER_BADGE,
+  companyBalanceTxKind,
+  companyBalanceTxSource,
   toCompanyBalanceEditTarget,
   toCompanyProfitEntryRow,
 } from '../../constants/company-profit-labels';
@@ -54,11 +56,12 @@ const DIFFERENCE_THRESHOLD = 0.01;
 /**
  * كشف حساب الشركة — every movement of the company balance: settlements,
  * capitalisations, manual deposits/withdrawals, treasury transfers and the
- * company's own profit shares.
+ * company's consolidated profit-share vouchers.
  *
- * Manual deposits/withdrawals (`isEditable`) can be edited or deleted from
- * here. Totals and net balance follow the applied period; the current
- * balance never does.
+ * `isEditable` lines (manual movements, payment vouchers, legacy transfers)
+ * can be edited or deleted from here; both echo the line's `source`. Totals
+ * and net balance follow the applied period; the current balance and the
+ * pending profit never do.
  */
 @Component({
   selector: 'app-company-profit-statement-modal',
@@ -216,15 +219,15 @@ export class CompanyProfitStatementModalComponent {
     const e = row.entry;
     if (!e.isEditable || this.deletingKey() !== null) return;
 
-    const kind = row.inflow ? 'الإيداع' : 'السحب';
-    const treasury = e.counterpartyTreasuryName
+    const kind = this.deleteKindLabel(row);
+    const treasury = e.counterpartyTreasuryName && companyBalanceTxKind(e) !== 'payment'
       ? (row.inflow ? ` وسيُخصم من خزينة "${e.counterpartyTreasuryName}"` : ` وسيعود إلى خزينة "${e.counterpartyTreasuryName}"`)
       : '';
     const ok = await this.dialog.confirm({
-      title: `حذف عملية ${kind}`,
+      title: `حذف ${kind}`,
       message:
-        `هل أنت متأكد من حذف عملية ${kind} بمبلغ ${formatMoneyAr(e.amount)}؟ ` +
-        `سيُعكس أثرها على رصيد الشركة${treasury}. هذا الإجراء لا يمكن التراجع عنه.`,
+        `هل أنت متأكد من حذف ${kind} بمبلغ ${formatMoneyAr(e.amount)}؟ ` +
+        `سيتم عكس الأثر على رصيد الشركة${treasury}. هذا الإجراء لا يمكن التراجع عنه.`,
       confirmText: 'حذف',
       cancelText: 'إلغاء',
       type: 'danger',
@@ -232,10 +235,10 @@ export class CompanyProfitStatementModalComponent {
     if (!ok) return;
 
     this.deletingKey.set(row.key);
-    this.service.deleteCompanyBalanceTransaction(e.id).subscribe({
+    this.service.deleteCompanyBalanceTransaction(e.id, companyBalanceTxSource(e)).subscribe({
       next: () => {
         this.deletingKey.set(null);
-        this.toast.success(`تم حذف عملية ${kind} بنجاح`);
+        this.toast.success(`تم حذف ${kind} بنجاح`);
         // Step back a page if we just emptied a non-first page.
         if (this.rows().length === 1 && this.pageIndex() > 1) {
           this.pageIndex.update((p) => p - 1);
@@ -250,6 +253,17 @@ export class CompanyProfitStatementModalComponent {
   }
 
   // ─────────── internals ───────────
+
+  private deleteKindLabel(row: CompanyProfitEntryRow): string {
+    switch (companyBalanceTxKind(row.entry)) {
+      case 'transfer':
+        return 'التحويل';
+      case 'payment':
+        return 'سند الصرف';
+      default:
+        return row.inflow ? 'عملية الإيداع' : 'عملية السحب';
+    }
+  }
 
   /**
    * Reloads the statement. The shareholders summary refreshes on its own:
