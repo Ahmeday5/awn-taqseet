@@ -1,18 +1,14 @@
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { AmountArPipe } from '../../../../../shared/pipes/money-ar.pipe';
 import { ProfitsSummary } from '../../../models/treasury.model';
 import { ProfitInfoComponent } from '../profit-info/profit-info.component';
 
-const round2 = (n: number): number => Math.round(n * 100) / 100;
-
 /**
- * "الأرباح" block — the year's net-profit equation plus the
- * total / distributed / current figures.
- *
- * `netProfits = distributedProfits` only holds company-wide: when scoped to
- * a representative, `distributedProfits` is that rep's slice alone, so the
- * ✓/⚠ comparison is dropped and distributed is shown as a plain figure.
+ * "الأرباح" block — the year's net-profit equation plus the total,
+ * distributed and current figures. Distributed profits is its own figure,
+ * never equated to net profits (they legitimately differ), and total/current
+ * profits are the server's trial-balance figures, rendered as-is.
  */
 @Component({
   selector: 'app-profits-summary-card',
@@ -24,10 +20,4 @@ const round2 = (n: number): number => Math.round(n * 100) / 100;
 })
 export class ProfitsSummaryCardComponent {
   readonly summary = input.required<ProfitsSummary>();
-  readonly showCompanyFigures = input(true);
-
-  protected readonly balanced = computed(() => {
-    const s = this.summary();
-    return round2(s.netProfits) === round2(s.distributedProfits);
-  });
 }

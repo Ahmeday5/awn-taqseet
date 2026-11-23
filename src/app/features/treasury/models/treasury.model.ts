@@ -250,8 +250,11 @@ export interface ShareholderPendingProfit {
 }
 
 export interface ProfitsSummary {
+  /** Server-computed — same formula as the trial balance. Never derive it client-side. */
   totalProfits: number;
+  /** Independent of `netProfits` — the two legitimately differ (e.g. 0 for an undistributed year). */
   distributedProfits: number;
+  /** Server-computed — same formula as the trial balance. Never derive it client-side. */
   currentProfits: number;
   collectedProfits: number;
   directRevenues: number;
@@ -287,22 +290,37 @@ export interface MonthlyProfitDistribution {
   monthName: string;
   isCurrentMonth: boolean;
   netProfit: number;
-  /** companyProfit + shareholdersProfit + representativesProfit (= netProfit). */
+  /** Server-computed; legitimately differs from `netProfit`. */
   distributedProfit: number;
-  /** netProfit − representativesProfit. */
+  /**
+   * Shareholders' profit before the company's cut. Not the sum of
+   * `companyProfit` + `shareholdersProfit` — render as-is, never recompute.
+   * 0 when scoped to a representative.
+   */
   shareholdersPool: number;
+  /** 0 when scoped to a representative. */
   companyProfit: number;
+  /** 0 when scoped to a representative. */
   shareholdersProfit: number;
   representativesProfit: number;
   representatives: RepresentativeMonthlyProfit[];
   shareholders: ShareholderMonthlyProfit[];
 }
 
+/**
+ * A representative's share for a month (or the year), broken down by source.
+ *
+ * `amount` is what was actually PAID OUT in the period; `earned` is what
+ * accrued (= fromContracts + fromRevenues − fromExpenses). The two differ
+ * whenever payouts lag behind or run ahead of accruals.
+ */
 export interface RepresentativeMonthlyProfit {
   representativeId: number;
   representativeName: string;
-  /** fromContracts + fromRevenues − fromExpenses. */
+  /** Commission paid out in the period. */
   amount: number;
+  /** Commission accrued in the period. */
+  earned: number;
   fromContracts: number;
   fromRevenues: number;
   /** Subtracted from the total. */

@@ -96,7 +96,7 @@ export interface ScheduleLine {
 }
 
 /** Avoid binary-float noise (e.g. 0.30000000000000004) in running balances. */
-function roundMoney(value: number): number {
+export function roundMoney(value: number): number {
   return Math.round(value * 100) / 100;
 }
 

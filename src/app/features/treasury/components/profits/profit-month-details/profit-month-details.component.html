@@ -1,19 +1,16 @@
-@let r = row();
-
 <ng-template #amt let-v>
   <span class="md-num" [class.md-loss]="v < 0">{{ v | amountAr }}</span>
 </ng-template>
 
-<p class="md-story">
-  صافي الربح <ng-container *ngTemplateOutlet="amt; context: { $implicit: r.netProfit }" />
-  − أرباح المناديب <ng-container *ngTemplateOutlet="amt; context: { $implicit: r.representativesProfit }" />
-  = ربح المساهمين <ng-container *ngTemplateOutlet="amt; context: { $implicit: r.shareholdersPool }" />،
-  اتقسم: حصة الشركة <ng-container *ngTemplateOutlet="amt; context: { $implicit: r.companyProfit }" />
-  @if (companyLine(); as c) {
-    (منها نصيبها من رصيدها <ng-container *ngTemplateOutlet="amt; context: { $implicit: c.poolShare }" />)
+<!-- Independent server figures — deliberately no +/−/= between them. -->
+<dl class="md-figures">
+  @for (f of keyFigures(); track f.label) {
+    <div class="md-figure" [class.md-figure-strong]="f.strong">
+      <dt>{{ f.label }}</dt>
+      <dd><ng-container *ngTemplateOutlet="amt; context: { $implicit: f.value }" /></dd>
+    </div>
   }
-  وحصة المساهمين <ng-container *ngTemplateOutlet="amt; context: { $implicit: r.shareholdersProfit }" />
-</p>
+</dl>
 
 <!-- ── (أ) representatives ── -->
 <section class="md-section" aria-labelledby="md-reps-title">
@@ -31,7 +28,14 @@
             <th scope="col">عمولة العقود</th>
             <th scope="col"><span class="md-op">+</span> من الإيرادات</th>
             <th scope="col"><span class="md-op">−</span> من المصروفات</th>
-            <th scope="col" class="md-strong"><span class="md-op">=</span> الإجمالي</th>
+            <th scope="col" class="md-strong">
+              <span class="md-op">=</span> المستحق
+              <app-profit-info field="MonthlyProfitDistribution.Representatives.Earned" />
+            </th>
+            <th scope="col" class="md-strong md-paid">
+              المصروف
+              <app-profit-info field="MonthlyProfitDistribution.Representatives.Amount" />
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -41,7 +45,8 @@
               <td><ng-container *ngTemplateOutlet="amt; context: { $implicit: rep.fromContracts }" /></td>
               <td><ng-container *ngTemplateOutlet="amt; context: { $implicit: rep.fromRevenues }" /></td>
               <td><ng-container *ngTemplateOutlet="amt; context: { $implicit: rep.fromExpenses }" /></td>
-              <td class="md-strong"><ng-container *ngTemplateOutlet="amt; context: { $implicit: rep.amount }" /></td>
+              <td class="md-strong"><ng-container *ngTemplateOutlet="amt; context: { $implicit: rep.earned }" /></td>
+              <td class="md-strong md-paid"><ng-container *ngTemplateOutlet="amt; context: { $implicit: rep.amount }" /></td>
             </tr>
           }
         </tbody>
@@ -52,9 +57,8 @@
               <td><ng-container *ngTemplateOutlet="amt; context: { $implicit: repTotals().fromContracts }" /></td>
               <td><ng-container *ngTemplateOutlet="amt; context: { $implicit: repTotals().fromRevenues }" /></td>
               <td><ng-container *ngTemplateOutlet="amt; context: { $implicit: repTotals().fromExpenses }" /></td>
-              <td class="md-strong">
-                <ng-container *ngTemplateOutlet="amt; context: { $implicit: r.representativesProfit }" />
-              </td>
+              <td class="md-strong"><ng-container *ngTemplateOutlet="amt; context: { $implicit: repTotals().earned }" /></td>
+              <td class="md-strong md-paid"><ng-container *ngTemplateOutlet="amt; context: { $implicit: repTotals().paid }" /></td>
             </tr>
           </tfoot>
         }

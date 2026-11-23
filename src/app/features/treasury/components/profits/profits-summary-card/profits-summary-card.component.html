@@ -53,27 +53,5 @@
     <ng-container
       *ngTemplateOutlet="term; context: { label: 'صافي الأرباح', value: s.netProfits, field: 'NetProfits', strong: true }"
     />
-    @if (showCompanyFigures()) {
-      <span class="ps-op" aria-label="يساوي">=</span>
-      <div class="ps-term ps-term-strong" [class.ps-term-warn]="!balanced()">
-        <span class="ps-term-label">
-          الأرباح الموزعة
-          <app-profit-info field="DistributedProfits" />
-        </span>
-        <span class="ps-term-value">
-          <span [class.ps-loss]="s.distributedProfits < 0">{{ s.distributedProfits | amountAr }}</span>
-          @if (balanced()) {
-            <span class="ps-mark ps-mark-ok" role="img" aria-label="متطابق" title="صافي الأرباح = الأرباح الموزعة">✓</span>
-          } @else {
-            <span
-              class="ps-mark ps-mark-warn"
-              role="img"
-              aria-label="غير متطابق"
-              title="صافي الأرباح لا يساوي الأرباح الموزعة — برجاء مراجعة البيانات"
-            >⚠️</span>
-          }
-        </span>
-      </div>
-    }
   </div>
 </section>

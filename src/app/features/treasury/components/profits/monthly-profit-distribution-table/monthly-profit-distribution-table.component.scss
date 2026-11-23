@@ -3,7 +3,16 @@
 :host {
   display: block;
   @include ps.ps-table(ps.$ps-gold);
-  @include ps.ps-check;
+}
+
+// Groups each representative's "المستحق | المصروف" pair visually.
+.ps-rep-start {
+  border-inline-start: 2px solid ps.$ps-frame;
+}
+
+// The group caption sits above its sub-header row, so it gets a thin rule.
+thead .ps-rep-group {
+  border-bottom-width: 1px;
 }
 
 .ps-banner {
@@ -50,9 +59,4 @@
 .ps-row-chevron {
   font-size: 14px;
   opacity: 0.6;
-}
-
-.ps-row-warn {
-  margin-inline-start: 4px;
-  font-size: 12px;
 }

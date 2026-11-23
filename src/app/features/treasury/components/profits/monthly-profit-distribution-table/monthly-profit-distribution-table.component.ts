@@ -44,29 +44,33 @@ const TRAILING: readonly DistributionColumn[] = [
   { key: 'distributedProfit', label: 'الأرباح الموزعة', field: 'DistributedProfit', strong: true },
 ];
 
-const round2 = (n: number): number => Math.round(n * 100) / 100;
-
-interface RepCell {
-  amount: number;
-  /** Tooltip breakdown; null when the rep has no entry that month. */
+/** One representative's pair of cells: accrued vs. actually paid out. */
+interface RepCells {
+  earned: number;
+  paid: number;
+  /** Tooltip breakdown of `earned`; null when the rep has no entry that month. */
   lines: string[] | null;
 }
 
+const NO_REP_ACTIVITY: RepCells = { earned: 0, paid: 0, lines: null };
+
 interface DistributionViewRow {
   row: MonthlyProfitDistribution;
-  /** Aligned 1:1 with the `representatives` columns. */
-  reps: RepCell[];
-  /** distributedProfit ≠ netProfit (company-wide view only). */
-  mismatch: boolean;
+  /** Aligned 1:1 with the `representatives` column groups. */
+  reps: RepCells[];
 }
 
 /**
- * "توزيع الأرباح الشهرية", computed on each month's net profit.
+ * "توزيع الأرباح الشهرية".
  *
- * Representative columns are dynamic: the headers follow the
- * `treasuries.representatives` order and each cell is matched by
- * `representativeId`, never by index, because a month only lists the reps
- * who earned something in it.
+ * Representative columns are dynamic: one group per representative (in
+ * `treasuries.representatives` order) with "المستحق" and "المصروف"
+ * sub-columns, each cell matched by `representativeId` — never by index —
+ * since a month only lists reps with activity.
+ *
+ * Every figure is rendered exactly as the API sends it: distributed profit
+ * legitimately differs from net profit, so there is no client-side
+ * reconciliation.
  *
  * Company-wide, every month row (and the yearly total) opens a breakdown of
  * how its net profit was split between representatives, the company and each
@@ -109,6 +113,9 @@ export class MonthlyProfitDistributionTableComponent {
     return total ? this.toViewRow(total) : null;
   });
 
+  /** Fixed columns span both header rows only when the rep sub-header row exists. */
+  protected readonly headerRowSpan = computed(() => (this.representatives().length ? 2 : 1));
+
   protected readonly detailsTitle = computed(() => {
     const row = this.selected();
     if (!row) return '';
@@ -135,17 +142,16 @@ export class MonthlyProfitDistributionTableComponent {
         const r = byId.get(rep.representativeId);
         return r
           ? {
-              amount: r.amount,
+              earned: r.earned,
+              paid: r.amount,
               lines: [
                 `عمولة العقود ${formatAmountAr(r.fromContracts)}`,
                 `+ من الإيرادات ${formatAmountAr(r.fromRevenues)}`,
                 `− من المصروفات ${formatAmountAr(r.fromExpenses)}`,
               ],
             }
-          : { amount: 0, lines: null };
+          : NO_REP_ACTIVITY;
       }),
-      mismatch:
-        this.showCompanyFigures() && round2(row.distributedProfit) !== round2(row.netProfit),
     };
   }
 }

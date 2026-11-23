@@ -1,11 +1,6 @@
-<ng-template #figureCell let-row="row" let-col="col" let-mismatch="mismatch">
+<ng-template #figureCell let-row="row" let-col="col">
   @let v = value(row, col.key);
-  <td [class.ps-loss]="v < 0" [class.ps-net]="col.strong">
-    {{ v | amountAr }}
-    @if (mismatch && col.key === 'distributedProfit') {
-      <span class="ps-row-warn" role="img" aria-label="لا يساوي صافي الربح" title="الأرباح الموزعة لا تساوي صافي الربح">⚠️</span>
-    }
-  </td>
+  <td [class.ps-loss]="v < 0" [class.ps-net]="col.strong">{{ v | amountAr }}</td>
 </ng-template>
 
 <ng-template #cells let-v="view">
@@ -25,19 +20,20 @@
     }
   </th>
   @for (col of leading; track col.key) {
-    <ng-container *ngTemplateOutlet="figureCell; context: { row: v.row, col, mismatch: v.mismatch }" />
+    <ng-container *ngTemplateOutlet="figureCell; context: { row: v.row, col }" />
   }
   @for (cell of v.reps; track $index) {
-    <td [class.ps-loss]="cell.amount < 0">
+    <td class="ps-rep-start" [class.ps-loss]="cell.earned < 0">
       @if (cell.lines) {
-        <app-profit-info [label]="cell.amount | amountAr" [lines]="cell.lines" heading="تقسيم أرباح المندوب" />
+        <app-profit-info [label]="cell.earned | amountAr" [lines]="cell.lines" heading="تقسيم المستحق للمندوب" />
       } @else {
-        {{ cell.amount | amountAr }}
+        {{ cell.earned | amountAr }}
       }
     </td>
+    <td [class.ps-loss]="cell.paid < 0">{{ cell.paid | amountAr }}</td>
   }
   @for (col of trailing(); track col.key) {
-    <ng-container *ngTemplateOutlet="figureCell; context: { row: v.row, col, mismatch: v.mismatch }" />
+    <ng-container *ngTemplateOutlet="figureCell; context: { row: v.row, col }" />
   }
 </ng-template>
 
@@ -51,23 +47,41 @@
     <table>
       <thead>
         <tr>
-          <th scope="col" class="ps-month">الشهر</th>
+          <th scope="col" class="ps-month" [attr.rowspan]="headerRowSpan()">الشهر</th>
           @for (col of leading; track col.key) {
-            <th scope="col" [class.ps-net]="col.strong">
+            <th scope="col" [class.ps-net]="col.strong" [attr.rowspan]="headerRowSpan()">
               {{ col.label }}
               <app-profit-info [field]="col.field" />
             </th>
           }
           @for (rep of representatives(); track rep.representativeId) {
-            <th scope="col">{{ rep.representativeName }}</th>
+            <th scope="colgroup" colspan="2" class="ps-rep-group ps-rep-start">{{ rep.representativeName }}</th>
           }
           @for (col of trailing(); track col.key) {
-            <th scope="col" [class.ps-net]="col.strong">
+            <th scope="col" [class.ps-net]="col.strong" [attr.rowspan]="headerRowSpan()">
               {{ col.label }}
               <app-profit-info [field]="col.field" />
             </th>
           }
         </tr>
+        @if (representatives().length) {
+          <tr>
+            @for (rep of representatives(); track rep.representativeId; let first = $first) {
+              <th scope="col" class="ps-sub ps-rep-start">
+                المستحق
+                @if (first) {
+                  <app-profit-info field="MonthlyProfitDistribution.Representatives.Earned" />
+                }
+              </th>
+              <th scope="col" class="ps-sub">
+                المصروف
+                @if (first) {
+                  <app-profit-info field="MonthlyProfitDistribution.Representatives.Amount" />
+                }
+              </th>
+            }
+          </tr>
+        }
       </thead>
 
       <tbody>

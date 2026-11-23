@@ -5,6 +5,7 @@ import {
   effect,
   inject,
   signal,
+  untracked,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
@@ -12,6 +13,7 @@ import { CustomersService } from '../../services/customers.service';
 import { ContractsService } from '../../../contracts/services/contracts.service';
 import { InstallmentsService } from '../../services/installments.service';
 import { TreasuryService } from '../../../treasury/services/treasury.service';
+import { DialogService } from '../../../../core/services/dialog.service';
 import { DashboardClient } from '../../models/dashboard-client.model';
 import {
   ClientContractRow,
@@ -37,8 +39,7 @@ import { apiErrorToMessage } from '../../../../core/utils/api-error.util';
 import { todayIsoDate } from '../../../../shared/utils/date-iso.util';
 import { HttpCacheService } from '../../../../core/services/http-cache.service';
 import { onInvalidate } from '../../../../core/utils/auto-refresh.util';
-
-type PaymentMethodKey = 'Cash' | 'Transfer' | 'Card' | 'STCPay' | 'ApplePay';
+import { formatAmount, roundMoney } from '../../utils/installment-schedule.util';
 
 const CONTRACT_PAGE_SIZE = 100;
 
@@ -61,8 +62,8 @@ export class PaymentComponent {
   private readonly contractsService = inject(ContractsService);
   private readonly installmentsService = inject(InstallmentsService);
   private readonly treasuryService = inject(TreasuryService);
-  private readonly customersLegacy = inject(CustomersService); // mock recent payments
   private readonly toast = inject(ToastService);
+  private readonly dialog = inject(DialogService);
   private readonly cache = inject(HttpCacheService);
 
   // ── lookup data ──
@@ -86,8 +87,8 @@ export class PaymentComponent {
   protected readonly selectedContractId = signal<number | null>(null);
   protected readonly payTreasuryId = signal<number | null>(null);
   protected readonly payAmount = signal<number>(0);
-  /** `null` = not specified — the backend no longer requires a payment method. */
-  protected readonly payMethod = signal<PaymentMethodKey | null>(null);
+  /** «إغلاق العقد» — pay off the full remaining balance (see `effectiveAmount`). */
+  protected readonly paySettle = signal(false);
   protected readonly payDate = signal<string>(todayIsoDate());
   protected readonly payNotes = signal<string>('');
 
@@ -112,28 +113,41 @@ export class PaymentComponent {
    * the card mirrors the same numbers the customer sees in the statement
    * modal. Falls back to the table row data when details haven't loaded yet.
    */
+  /** Live balance — contract details when loaded, the table row otherwise. */
+  private readonly contractRemaining = computed(() => {
+    const c = this.selectedContract();
+    if (!c) return 0;
+    return roundMoney(this.contractDetails()?.summary.totalRemaining ?? c.remainingAmount);
+  });
+
+  /** The amount actually submitted — derived from the balance while settling. */
+  protected readonly effectiveAmount = computed(() =>
+    this.paySettle() ? this.contractRemaining() : Number(this.payAmount()) || 0,
+  );
+
   protected readonly paymentInfo = computed(() => {
     const c = this.selectedContract();
     if (!c) return null;
     const d = this.contractDetails();
-    const installmentDue = d?.nextInstallment?.amount ?? c.installmentAmount;
-    const totalPaid = d?.summary.totalPaid ?? c.totalPaid;
-    const totalRemaining = d?.summary.totalRemaining ?? c.remainingAmount;
-    const overdue = d?.summary.overdueAmount ?? 0;
-    const now = Number(this.payAmount() ?? 0);
+    const totalRemaining = this.contractRemaining();
+    const now = this.effectiveAmount();
     return {
-      installmentDue,
-      totalPaid,
+      installmentDue: d?.nextInstallment?.amount ?? c.installmentAmount,
+      totalPaid: d?.summary.totalPaid ?? c.totalPaid,
       now,
-      remainingAfter: Math.max(0, totalRemaining - now),
+      remainingAfter: Math.max(0, roundMoney(totalRemaining - now)),
       totalRemaining,
-      overdue,
+      overdue: d?.summary.overdueAmount ?? 0,
     };
   });
 
   constructor() {
     this.loadClients();
     this.loadTreasuries();
+
+    // Loaders run `untracked`: cache hits replay synchronously, so any signal
+    // read in a subscriber would otherwise become a dependency of the effect
+    // (e.g. `payAmount` → refetching details on every keystroke).
 
     // When the client changes, fetch their contracts and clear the
     // contract/details selection.
@@ -146,7 +160,7 @@ export class PaymentComponent {
           this.contracts.set([]);
           return;
         }
-        this.fetchContracts(clientId);
+        untracked(() => this.fetchContracts(clientId));
       },
       { allowSignalWrites: true },
     );
@@ -159,7 +173,7 @@ export class PaymentComponent {
           this.contractDetails.set(null);
           return;
         }
-        this.fetchContractDetails(contractId);
+        untracked(() => this.fetchContractDetails(contractId));
       },
       { allowSignalWrites: true },
     );
@@ -217,7 +231,7 @@ export class PaymentComponent {
         // operator can accept or override.
         const next = d.nextInstallment?.amount ?? 0;
         if (this.payAmount() === 0 && next > 0) {
-          this.payAmount.set(Math.round(next * 100) / 100);
+          this.payAmount.set(roundMoney(next));
         }
         this.detailsLoading.set(false);
       },
@@ -233,23 +247,24 @@ export class PaymentComponent {
   protected onClientChange(value: number | string | null): void {
     const id = value === null || value === '' ? null : Number(value);
     this.selectedClientId.set(id !== null && Number.isFinite(id) ? id : null);
-    this.payAmount.set(0);
+    this.resetAmount();
   }
 
   protected onContractChange(value: string): void {
     const id = value ? Number(value) : null;
     this.selectedContractId.set(Number.isFinite(id) ? id : null);
-    this.payAmount.set(0);
+    this.resetAmount();
   }
 
-  protected recordPayment(): void {
+  protected async recordPayment(): Promise<void> {
+    if (this.submitting()) return;
     const contract = this.selectedContract();
     if (!contract) {
       this.toast.error('اختر العميل والعقد أولاً');
       return;
     }
-    const amount = Number(this.payAmount());
-    if (!amount || amount <= 0) {
+    const amount = this.effectiveAmount();
+    if (amount <= 0) {
       this.toast.error('أدخل مبلغًا صحيحًا');
       return;
     }
@@ -258,14 +273,13 @@ export class PaymentComponent {
       this.toast.error('اختر الخزينة');
       return;
     }
+    if (this.paySettle() && !(await this.confirmSettlement(contract.id, amount))) return;
 
-    const method = this.payMethod();
     const payload: PayInstallmentPayload = {
       contractId: contract.id,
       amount,
       treasuryId,
       paymentDate: new Date(this.payDate()).toISOString(),
-      paymentMethod: method ? this.toServerMethod(method) : undefined,
       notes: this.payNotes().trim() || '',
     };
 
@@ -282,7 +296,7 @@ export class PaymentComponent {
         // Refresh this page's own data directly — don't rely solely on the
         // cache-invalidation cascade to eventually reach this instance.
         this.refreshAfterMutation();
-        this.payAmount.set(0);
+        this.resetAmount();
         this.payNotes.set('');
       },
       error: (err: ApiError) => {
@@ -325,14 +339,18 @@ export class PaymentComponent {
 
   // ─────────── internals ───────────
 
-  private toServerMethod(key: PaymentMethodKey): string {
-    const map: Record<PaymentMethodKey, string> = {
-      Cash: 'cash',
-      Transfer: 'transfer',
-      Card: 'card',
-      STCPay: 'stcpay',
-      ApplePay: 'applepay',
-    };
-    return map[key];
+  private resetAmount(): void {
+    this.payAmount.set(0);
+    this.paySettle.set(false);
+  }
+
+  private confirmSettlement(contractId: number, amount: number): Promise<boolean> {
+    return this.dialog.confirm({
+      title: 'إغلاق العقد',
+      message: `سيتم سداد كامل المتبقي (${formatAmount(amount)}) وإغلاق العقد #${contractId}. هل تريد المتابعة؟`,
+      confirmText: 'إغلاق العقد',
+      cancelText: 'تراجع',
+      type: 'warning',
+    });
   }
 }

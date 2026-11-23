@@ -6,10 +6,12 @@ import {
   inject,
   input,
   signal,
+  untracked,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { Observable, firstValueFrom } from 'rxjs';
+import { Subscription } from 'rxjs';
 import { map } from 'rxjs/operators';
 
 import { CustomersService } from '../../services/customers.service';
@@ -25,7 +27,11 @@ import {
   InstallmentPaymentResult,
   PayInstallmentPayload,
 } from '../../models/client-statement.model';
-import { describeAllocations, formatAmount } from '../../utils/installment-schedule.util';
+import {
+  describeAllocations,
+  formatAmount,
+  roundMoney,
+} from '../../utils/installment-schedule.util';
 import { InstallmentScheduleTableComponent } from '../../components/installment-schedule-table/installment-schedule-table.component';
 import { ContractPaymentsTableComponent } from '../../components/contract-payments-table/contract-payments-table.component';
 import { InstallmentPaymentEditModalComponent } from '../../components/installment-payment-edit-modal/installment-payment-edit-modal.component';
@@ -63,16 +69,21 @@ import { DirectContractModalComponent } from '../../components/direct-contract-m
 
 const DEFAULT_PAGE_SIZE = 10;
 
-type PaymentMethodKey = 'Cash' | 'Transfer' | 'Card' | 'STCPay' | 'ApplePay';
-
 interface PaymentForm {
   amount: number;
   treasuryId: number | null;
-  /** `null` = not specified — the backend no longer requires a payment method. */
-  paymentMethod: PaymentMethodKey | null;
+  /**
+   * «إغلاق العقد» — pays off the contract's full remaining balance. While on,
+   * the submitted amount is derived from `summary.totalRemaining` (see
+   * `payAmount`), so a refresh can never leave a stale payoff amount behind.
+   */
+  settle: boolean;
   paymentDate: string;
   notes: string;
 }
+
+/** Header-card fields — satisfied by both the picker's list row and the client profile. */
+type StatementClient = Pick<DashboardClient, 'id' | 'fullName' | 'phoneNumber' | 'address'>;
 
 @Component({
   selector: 'app-statement',
@@ -124,9 +135,20 @@ export class StatementComponent {
   protected readonly clientsLoading = signal(false);
   protected readonly selectedClientId = signal<number | null>(null);
 
-  protected readonly selectedClient = computed(
-    () => this.clients().find((c) => c.id === this.selectedClientId()) ?? null,
-  );
+  /**
+   * The preset client fetched on its own (`GET /clients/{id}`), so the
+   * embedded statement renders immediately instead of waiting for the full
+   * multi-page client list that only the picker needs.
+   */
+  private readonly resolvedClient = signal<StatementClient | null>(null);
+
+  protected readonly selectedClient = computed<StatementClient | null>(() => {
+    const id = this.selectedClientId();
+    if (id === null) return null;
+    const resolved = this.resolvedClient();
+    if (resolved?.id === id) return resolved;
+    return this.clients().find((c) => c.id === id) ?? null;
+  });
 
   /** Client list shaped for the searchable select (name + phone search). */
   protected readonly clientOptions = computed<SearchableSelectOption[]>(() =>
@@ -159,8 +181,11 @@ export class StatementComponent {
   // ── details modal ──────────────────────────────────────────────────
   protected readonly detailsOpen = signal(false);
   protected readonly detailsLoading = signal(false);
+  /** Last details-request failure — drives the inline retry state. */
+  protected readonly detailsError = signal<string | null>(null);
   protected readonly details = signal<ContractDetails | null>(null);
   protected readonly activeContractId = signal<number | null>(null);
+  private detailsSub: Subscription | null = null;
 
   // ── payment modal ──────────────────────────────────────────────────
   protected readonly payOpen = signal(false);
@@ -169,12 +194,20 @@ export class StatementComponent {
 
   protected readonly payForm = signal<PaymentForm>(this.emptyPaymentForm());
 
-  protected readonly payRemainingAfter = computed(() => {
-    const d = this.details();
-    const amt = Number(this.payForm().amount) || 0;
-    if (!d) return 0;
-    return Math.max(0, (d.summary.totalRemaining ?? 0) - amt);
-  });
+  private readonly contractRemaining = computed(() =>
+    roundMoney(this.details()?.summary.totalRemaining ?? 0),
+  );
+
+  /** The amount actually submitted — the full balance when settling the contract. */
+  protected readonly payAmount = computed(() =>
+    this.payForm().settle
+      ? this.contractRemaining()
+      : Number(this.payForm().amount) || 0,
+  );
+
+  protected readonly payRemainingAfter = computed(() =>
+    Math.max(0, roundMoney(this.contractRemaining() - this.payAmount())),
+  );
 
   // ── payment receipt (shown after a successful payment) ─────────────────
   protected readonly receipt = signal<InstallmentPaymentResult | null>(null);
@@ -211,6 +244,7 @@ export class StatementComponent {
           this.initialClientId() ?? (Number.isFinite(fromQuery) && fromQuery > 0 ? fromQuery : null);
         if (presetClientId !== null) {
           this.selectedClientId.set(presetClientId);
+          untracked(() => this.resolveClient(presetClientId));
         }
       },
       { allowSignalWrites: true },
@@ -232,7 +266,8 @@ export class StatementComponent {
           this.totalPages.set(0);
           return;
         }
-        this.fetchContracts(clientId, page, size, repName, false);
+        // `untracked`: cache hits replay synchronously inside this effect.
+        untracked(() => this.fetchContracts(clientId, page, size, repName, false));
       },
       { allowSignalWrites: true },
     );
@@ -257,6 +292,24 @@ export class StatementComponent {
         this.clients.set([]);
         this.clientsLoading.set(false);
       },
+    });
+  }
+
+  /** Loads just this client so the header card never waits on `loadClients`. */
+  private resolveClient(id: number): void {
+    if (this.resolvedClient()?.id === id) return;
+    this.customersService.getClientProfile(id).subscribe({
+      next: ({ client }) => {
+        if (this.selectedClientId() !== id) return;
+        this.resolvedClient.set({
+          id: client.id,
+          fullName: client.fullName,
+          phoneNumber: client.phoneNumber,
+          address: client.address,
+        });
+      },
+      // Non-fatal: the header falls back to the picker list once it loads.
+      error: () => undefined,
     });
   }
 
@@ -411,7 +464,7 @@ export class StatementComponent {
   };
 
   private loadStatementPrintConfig(
-    client: DashboardClient,
+    client: StatementClient,
   ): Observable<PrintConfig<ClientContractRow>> {
     const representativeName = this.representativeSearch();
     return fetchAllPages<ClientContractRow>((pageIndex, pageSize) =>
@@ -734,35 +787,50 @@ export class StatementComponent {
     this.activeContractId.set(row.id);
     this.details.set(null);
     this.detailsOpen.set(true);
-    this.detailsLoading.set(true);
-    this.contractsService.getDetails(row.id).subscribe({
-      next: (d) => {
-        this.details.set(d);
-        this.detailsLoading.set(false);
-      },
-      error: (err: ApiError) => {
-        this.detailsLoading.set(false);
-        this.toast.error(apiErrorToMessage(err, 'تعذّر تحميل تفاصيل العقد'));
-      },
-    });
+    this.loadDetails(row.id, false);
   }
 
   protected closeDetails(): void {
+    this.detailsSub?.unsubscribe();
+    this.detailsSub = null;
     this.detailsOpen.set(false);
+    this.detailsLoading.set(false);
+    this.detailsError.set(null);
     this.activeContractId.set(null);
     this.details.set(null);
   }
 
+  protected retryDetails(): void {
+    const id = this.activeContractId();
+    if (id !== null) this.loadDetails(id, true);
+  }
+
   private reloadDetails(id: number): void {
+    this.loadDetails(id, true);
+  }
+
+  /**
+   * Single entry point for the details request. Cancels any in-flight one so
+   * switching contracts quickly never paints a stale contract, and keeps the
+   * current data on screen during a background refresh.
+   */
+  private loadDetails(id: number, force: boolean): void {
+    this.detailsSub?.unsubscribe();
     this.detailsLoading.set(true);
-    this.contractsService.refreshDetails(id).subscribe({
+    this.detailsError.set(null);
+    const request$ = force
+      ? this.contractsService.refreshDetails(id)
+      : this.contractsService.getDetails(id);
+    this.detailsSub = request$.subscribe({
       next: (d) => {
+        if (this.activeContractId() !== id) return;
         this.details.set(d);
         this.detailsLoading.set(false);
       },
       error: (err: ApiError) => {
+        if (this.activeContractId() !== id) return;
         this.detailsLoading.set(false);
-        this.toast.error(apiErrorToMessage(err, 'تعذّر تحميل تفاصيل العقد'));
+        this.detailsError.set(apiErrorToMessage(err, 'تعذّر تحميل تفاصيل العقد'));
       },
     });
   }
@@ -774,14 +842,7 @@ export class StatementComponent {
     if (!d) return;
     const suggested =
       d.nextInstallment?.amount ?? d.summary.totalRemaining ?? 0;
-    // No default treasury — the operator must explicitly choose one.
-    this.payForm.set({
-      amount: Math.round(suggested * 100) / 100,
-      treasuryId: null,
-      paymentMethod: null,
-      paymentDate: todayIsoDate(),
-      notes: '',
-    });
+    this.payForm.set({ ...this.emptyPaymentForm(), amount: roundMoney(suggested) });
     this.payOpen.set(true);
   }
 
@@ -797,27 +858,27 @@ export class StatementComponent {
     this.payForm.update((f) => ({ ...f, [key]: value }));
   }
 
-  protected submitPayment(): void {
+  protected async submitPayment(): Promise<void> {
     const d = this.details();
     const f = this.payForm();
-    if (!d) return;
-    if (!f.amount || f.amount <= 0) {
+    if (!d || this.paySubmitting()) return;
+    const amount = this.payAmount();
+    if (amount <= 0) {
       this.toast.error('أدخل مبلغًا صحيحًا');
       return;
     }
-    if (f.treasuryId === null) {
+    const treasuryId = f.treasuryId;
+    if (treasuryId === null) {
       this.toast.error('اختر الخزينة');
       return;
     }
+    if (f.settle && !(await this.confirmSettlement(d.contract.id, amount))) return;
 
     const payload: PayInstallmentPayload = {
       contractId: d.contract.id,
-      amount: Number(f.amount),
-      treasuryId: f.treasuryId,
+      amount,
+      treasuryId,
       paymentDate: new Date(f.paymentDate).toISOString(),
-      paymentMethod: f.paymentMethod
-        ? this.toServerMethod(f.paymentMethod)
-        : undefined,
       notes: f.notes?.trim() || '',
     };
 
@@ -829,7 +890,7 @@ export class StatementComponent {
         this.receiptContext.set({
           clientName: d.client.fullName,
           contractId: d.contract.id,
-          treasuryName: this.treasuries().find((t) => t.id === f.treasuryId)?.name ?? null,
+          treasuryName: this.treasuries().find((t) => t.id === treasuryId)?.name ?? null,
         });
         this.receipt.set(result);
         // Refresh this modal's own data directly — don't rely solely on
@@ -843,7 +904,24 @@ export class StatementComponent {
     });
   }
 
+  private confirmSettlement(contractId: number, amount: number): Promise<boolean> {
+    return this.dialog.confirm({
+      title: 'إغلاق العقد',
+      message: `سيتم سداد كامل المتبقي (${formatAmount(amount)}) وإغلاق العقد #${contractId}. هل تريد المتابعة؟`,
+      confirmText: 'إغلاق العقد',
+      cancelText: 'تراجع',
+      type: 'warning',
+    });
+  }
+
   // ─────────── view helpers ───────────
+
+  /** "Product (+N)" for the details payload — mirrors `rowProductLabel`. */
+  protected detailsProductLabel(d: ContractDetails): string {
+    if (d.items.length === 0) return '—';
+    const first = d.items[0].productName || '—';
+    return d.items.length > 1 ? `${first} (+${d.items.length - 1})` : first;
+  }
 
   /** Notes column fallback — backend may send null/empty. */
   protected notesLabel(notes: string | null | undefined): string {
@@ -921,28 +999,13 @@ export class StatementComponent {
   // ─────────── internals ───────────
 
   private emptyPaymentForm(): PaymentForm {
+    // No default treasury — the operator must explicitly choose one.
     return {
       amount: 0,
       treasuryId: null,
-      paymentMethod: 'Cash',
+      settle: false,
       paymentDate: todayIsoDate(),
       notes: '',
     };
-  }
-
-  /**
-   * Translates the UI radio key to what the backend's `paymentMethod`
-   * field expects. The Pay endpoint accepts the lowercase tokens shown
-   * in the sample payload (e.g. `"cash"`).
-   */
-  private toServerMethod(key: PaymentMethodKey): string {
-    const map: Record<PaymentMethodKey, string> = {
-      Cash: 'cash',
-      Transfer: 'transfer',
-      Card: 'card',
-      STCPay: 'stcpay',
-      ApplePay: 'applepay',
-    };
-    return map[key];
   }
 }

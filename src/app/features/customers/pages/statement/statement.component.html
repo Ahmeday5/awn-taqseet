@@ -44,8 +44,9 @@
   }
 </div>
 
-@if (selectedClient(); as cli) {
+@if (selectedClientId() !== null) {
 
+@if (selectedClient(); as cli) {
 <!-- ── Client header card ── -->
 <div class="st-client-card">
   <div class="st-client-avatar">{{ cli.fullName.charAt(0) }}</div>
@@ -77,6 +78,7 @@
     </div>
   </div>
 </div>
+}
 
 <!-- ── Contracts table ── -->
 <div class="card st-table-card">
@@ -210,8 +212,18 @@
 <!-- ─────────────────────────── Details modal ─────────────────────────── -->
 <app-modal [open]="detailsOpen()" size="xl" title="تفاصيل العقد" (closed)="closeDetails()">
 
-  @if (detailsLoading() && !details()) {
-  <div class="st-loading">جارٍ التحميل...</div>
+  @if (detailsError(); as error) {
+  <div class="st-state st-state-error" role="alert">
+    <span>{{ error }}</span>
+    <button type="button" class="btn btn-sm" (click)="retryDetails()" [disabled]="detailsLoading()">
+      إعادة المحاولة
+    </button>
+  </div>
+  } @else if (detailsLoading() && !details()) {
+  <div class="st-state" role="status">
+    <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+    <span>جارٍ تحميل تفاصيل العقد...</span>
+  </div>
   }
   @if (details(); as d) {
 
@@ -386,7 +398,7 @@
 
   @if (details(); as d) {
   <div class="st-pay-intro">
-    <span>العقد #{{ d.contract.id }} — {{ d.items.length > 0 ? (d.items[0].productName || '—') : '—' }}</span>
+    <span>العقد #{{ d.contract.id }} — {{ detailsProductLabel(d) }}</span>
     <span class="st-pay-intro-sep">|</span>
     <span>المتبقي: <strong style="color:var(--re)">
         {{ d.summary.totalRemaining | currencyAr : true }}
@@ -396,8 +408,8 @@
   <div class="row g-2">
     <div class="col-12 col-sm-6">
       <label class="form-label">المبلغ المدفوع (ج.م)</label>
-      <input type="number" class="form-control" min="0" step="0.01" [ngModel]="payForm().amount"
-        (ngModelChange)="updatePayForm('amount', +$event)" />
+      <input type="number" class="form-control" min="0" step="0.01" [ngModel]="payAmount()"
+        [readonly]="payForm().settle" (ngModelChange)="updatePayForm('amount', +$event)" />
     </div>
     <div class="col-12 col-sm-6">
       <label class="form-label">تاريخ السداد</label>
@@ -416,17 +428,15 @@
         }
       </select>
     </div>
-    <div class="col-12 col-sm-6">
-      <label class="form-label">طريقة السداد <small class="text-muted">(اختياري)</small></label>
-      <select class="form-select" [ngModel]="payForm().paymentMethod ?? ''"
-        (ngModelChange)="updatePayForm('paymentMethod', $event || null)">
-        <option value="">-- غير محدد --</option>
-        <option value="Cash">نقدي</option>
-        <option value="Transfer">تحويل بنكي</option>
-        <option value="Card">بطاقة</option>
-        <option value="STCPay">STC Pay</option>
-        <option value="ApplePay">Apple Pay</option>
-      </select>
+    <div class="col-12 col-sm-6 d-flex align-items-end">
+      <label class="pay-settle" [class.pay-settle-on]="payForm().settle">
+        <input type="checkbox" class="form-check-input" [ngModel]="payForm().settle"
+          [disabled]="d.summary.totalRemaining <= 0" (ngModelChange)="updatePayForm('settle', $event)" />
+        <span class="pay-settle-text">
+          <span class="pay-settle-title">إغلاق العقد</span>
+          <span class="pay-settle-hint">سداد كامل المتبقي دفعة واحدة</span>
+        </span>
+      </label>
     </div>
     <div class="col-12">
       <label class="form-label">ملاحظات (اختياري)</label>
@@ -448,7 +458,7 @@
       إلغاء
     </button>
     <button class="btn btn-gr" (click)="submitPayment()" [disabled]="paySubmitting()">
-      {{ paySubmitting() ? 'جارٍ الحفظ...' : 'تأكيد الدفعة' }}
+      {{ paySubmitting() ? 'جارٍ الحفظ...' : payForm().settle ? 'تأكيد إغلاق العقد' : 'تأكيد الدفعة' }}
     </button>
   </ng-container>
 </app-modal>

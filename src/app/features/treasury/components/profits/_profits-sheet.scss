@@ -150,29 +150,3 @@ $ps-loss: #c00000;
     }
   }
 }
-
-@mixin ps-check {
-  .ps-check {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 6px;
-    margin: 8px 0 0;
-    padding: 8px 12px;
-    border-radius: 6px;
-    font-size: 12.5px;
-    font-weight: 700;
-  }
-
-  .ps-check-ok {
-    background: #e7f6ea;
-    color: #1e6b2c;
-    border: 1px solid #a8dbb2;
-  }
-
-  .ps-check-warn {
-    background: #fff4e0;
-    color: #8a4b00;
-    border: 1px solid #f2c27a;
-  }
-}

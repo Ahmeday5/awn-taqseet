@@ -7,6 +7,7 @@ import {
   input,
   output,
   signal,
+  untracked,
 } from '@angular/core';
 import {
   AbstractControl,
@@ -185,13 +186,15 @@ export class DirectContractModalComponent {
     effect(() => {
       if (!this.open()) return;
       if (this.lookupsLoaded()) return;
-      this.loadLookups();
+      untracked(() => this.loadLookups());
     }, { allowSignalWrites: true });
 
     effect(() => {
       const id = this.editId();
       if (!id) return;
-      this.loadDetails(id);
+      // `untracked`: a cached response patches the form synchronously here,
+      // and nothing read while doing so may become a dependency of this effect.
+      untracked(() => this.loadDetails(id));
     }, { allowSignalWrites: true });
 
     // Creating a direct contract always starts from a supplier invoice — jump

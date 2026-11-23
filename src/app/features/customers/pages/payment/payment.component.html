@@ -46,7 +46,7 @@
         <div class="col-12 col-sm-6">
           <label class="form-label">المبلغ المدفوع الآن (ج.م)</label>
           <input type="number" class="form-control" placeholder="0" min="0" step="0.01"
-            [ngModel]="payAmount()" (ngModelChange)="payAmount.set(+$event)" />
+            [ngModel]="effectiveAmount()" [readonly]="paySettle()" (ngModelChange)="payAmount.set(+$event)" />
         </div>
         <div class="col-12 col-sm-6">
           <label class="form-label">الخزينة <span class="text-danger">*</span></label>
@@ -60,17 +60,16 @@
             }
           </select>
         </div>
-        <div class="col-12 col-sm-6">
-          <label class="form-label">طريقة الدفع <small class="text-muted">(اختياري)</small></label>
-          <select class="form-select"
-            [ngModel]="payMethod() ?? ''" (ngModelChange)="payMethod.set($event || null)">
-            <option value="">-- غير محدد --</option>
-            <option value="Cash">نقدي</option>
-            <option value="Transfer">تحويل</option>
-            <option value="Card">بطاقة</option>
-            <option value="STCPay">STC Pay</option>
-            <option value="ApplePay">Apple Pay</option>
-          </select>
+        <div class="col-12 col-sm-6 d-flex align-items-end">
+          <label class="pay-settle" [class.pay-settle-on]="paySettle()">
+            <input type="checkbox" class="form-check-input" [ngModel]="paySettle()"
+              [disabled]="!selectedContract() || (paymentInfo()?.totalRemaining ?? 0) <= 0"
+              (ngModelChange)="paySettle.set($event)" />
+            <span class="pay-settle-text">
+              <span class="pay-settle-title">إغلاق العقد</span>
+              <span class="pay-settle-hint">سداد كامل المتبقي دفعة واحدة</span>
+            </span>
+          </label>
         </div>
         <div class="col-12">
           <label class="form-label">ملاحظات (اختياري)</label>
@@ -116,7 +115,7 @@
 
       <div class="d-flex gap-2 mt-3">
         <button class="btn btn-bl flex-fill" (click)="recordPayment()" [disabled]="submitting()">
-          {{ submitting() ? 'جارٍ الحفظ...' : 'تسجيل الدفعة' }}
+          {{ submitting() ? 'جارٍ الحفظ...' : paySettle() ? 'تسجيل وإغلاق العقد' : 'تسجيل الدفعة' }}
         </button>
         <button class="btn btn-wa flex-fill" [disabled]="submitting()">📱 إرسال إيصال</button>
       </div>
