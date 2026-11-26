@@ -1,6 +1,7 @@
-<nav class="sidebar" [class.collapsed]="layout.collapsed()" [class.open]="layout.mobileOpen()">
-  <!-- Collapse toggle (desktop only) -->
-  <button class="sb-toggle" (click)="layout.toggleCollapsed()"
+<nav class="sidebar" [class.collapsed]="layout.collapsed()" [class.open]="layout.mobileOpen()"
+  aria-label="القائمة الرئيسية">
+  <!-- Collapse toggle (desktop only) — pinned, never scrolls -->
+  <button type="button" class="sb-toggle" (click)="layout.toggleCollapsed()"
     [title]="layout.collapsed() ? 'توسيع القائمة' : 'تصغير القائمة'">
     <svg class="sb-toggle-icon" [class.flipped]="layout.collapsed()" width="14" height="14" viewBox="0 0 14 14"
       fill="none">
@@ -9,7 +10,8 @@
     <span class="sb-toggle-label">تصغير</span>
   </button>
 
-  <!-- Nav sections -->
+  <!-- Nav sections — the only scrollable region -->
+  <div class="sb-scroll">
   @for (section of visibleSections(); track section.label) {
   <div class="sb-sec">{{ section.label }}</div>
 
@@ -32,4 +34,5 @@
   </a>
   }
   }
+  </div>
 </nav>
